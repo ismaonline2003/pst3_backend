@@ -2,10 +2,21 @@
 // importing the dependencies
 // node index.js
 // npx nodemon index.js
+const WSControllerClass = require('./controllers/websocket.js');
+const { createServer } = require('node:http');
 const cors = require("cors");
 const express = require("express");
 const app = express();
+const WSserver = createServer(app);
 const db = require("./models");
+//const WebSocket = require('ws');
+const io = require('socket.io')(WSserver, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 
 //this will re-set the database everytime you start the server
 db.sequelize.sync({ force: false, alter: true }).then(() => {
@@ -47,12 +58,20 @@ app.use(express.json());
 
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*"); 
+  res.header('Access-Control-Allow-Credentials', true);
+  res.header('Access-Control-Allow-Headers', 'Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Request-Method, Access-Control-Allow-Credentials');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.header('Allow', 'GET, POST, OPTIONS, PUT, DELETE');
+  //res.header("Access-Control-Allow-Origin", "http://localhost:3002"); 
+  next();
+});
 
 // simple route
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Users App - Backend!!!" });
 });
-
 require("./routes/person.js")(app);
 require("./routes/users.js")(app);
 require("./routes/author.js")(app);
@@ -62,3 +81,19 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server is up and running on port ${PORT}.`);
 });
+
+//set port for websocket
+WSserver.listen(3002, () => {
+  console.log('server running at http://localhost:3002');
+});
+const WSController = new WSControllerClass();
+io.on('connection', WSController.connection);
+WSController.sendAudioStreamToClients();
+
+//const wss = new WebSocket.Server({ port: 3002 });
+//const clients = new Map();
+//wsController.clients = clients;
+//wss.on('connection', wsController.connection);
+//console.log("wss up");
+
+

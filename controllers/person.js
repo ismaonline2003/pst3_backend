@@ -31,6 +31,7 @@ exports.create = (req, res) => {
 exports.findAll = (req, res) => {
 
   const name = req.query.name;
+  
   var condition = name ? { name: { [Op.like]: `%${name}%` } } : null;
 
   Person.findAll({ where: condition })
@@ -43,7 +44,8 @@ exports.findAll = (req, res) => {
           err.message || "Some error occurred while retrieving data."
       });
     });
-  
+  let query = "SELECT * FROM person WHERE name LIKE '%"+name+"%'";
+  "CREATE TABLE persona(....)"
 };
 
 //search a single Person with an id
