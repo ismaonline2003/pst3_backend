@@ -87,10 +87,16 @@ WSserver.listen(3002, () => {
   console.log('server running at http://localhost:3002');
 });
 const WSController = new WSControllerClass();
+console.log('hello web socket connection');
 io.on('connection', WSController.connection);
-WSController.sendAudioStreamToClients();
 
-//const wss = new WebSocket.Server({ port: 3002 });
+for(let i = 0; i < 12000; i++) {
+  setTimeout(async () => {
+    await WSController.sendAudioStreamToClients();
+  }, 3000);
+}
+
+ //const wss = new WebSocket.Server({ port: 3002 });
 //const clients = new Map();
 //wsController.clients = clients;
 //wss.on('connection', wsController.connection);
