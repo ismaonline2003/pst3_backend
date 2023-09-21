@@ -8,6 +8,9 @@ const cors = require("cors");
 const express = require("express");
 const app = express();
 const WSserver = createServer(app);
+//set port for websocket
+
+
 const db = require("./models");
 //const WebSocket = require('ws');
 const io = require('socket.io')(WSserver, {
@@ -81,20 +84,21 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server is up and running on port ${PORT}.`);
 });
-
-//set port for websocket
 WSserver.listen(3002, () => {
   console.log('server running at http://localhost:3002');
 });
+
 const WSController = new WSControllerClass();
 console.log('hello web socket connection');
 io.on('connection', WSController.connection);
 
-for(let i = 0; i < 12000; i++) {
-  setTimeout(async () => {
-    await WSController.sendAudioStreamToClients();
-  }, 3000);
-}
+WSController.sendAudioStreamToClients();
+
+//for(let i = 0; i < 12000; i++) {
+//  setTimeout(async () => {
+//    await WSController.sendAudioStreamToClients();
+//  }, 3000);
+//}
 
  //const wss = new WebSocket.Server({ port: 3002 });
 //const clients = new Map();

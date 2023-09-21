@@ -19,7 +19,14 @@ class WSController {
         this.socket = socket;
         this.socket.on('MicroAudio', this.onMicroAudio);
     }
-    sendAudioStreamToClients = async() => {
+    sendAudioStreamToClients = () => {
+        setTimeout(() => {
+            let read = fs.readFileSync('./src/current_emision/output_audio.mp3');
+            this.socket.emit('radioAudio', {'file': read});
+            this.sendAudioStreamToClients();
+        }, 9000);
+    }
+    _sliceAudio = async() => {
         const self = this;
         // spawn an ffmpeg process
         const child = childProcess.spawn(
@@ -33,10 +40,6 @@ class WSController {
                 'libmp3lame',
                 '-qscale:a',
                 '5',
-                '-ss',
-                '00:00:03',
-                '-t',
-                '00:00:05',
                 `${outputAudioFile}`
             ]
         );
@@ -51,8 +54,6 @@ class WSController {
         
         await child.stderr.on('data', (data) => {
             console.log(data);
-            let read = fs.readFileSync(outputAudioFile);
-            self.socket.emit('radioAudio', {'file': read});
         });
         
         await child.on('close', (code) => {
@@ -67,7 +68,7 @@ class WSController {
     onMicroAudio = async (data) => {
         console.log('data.audioData', data.audioData);
         fs.writeFile('./src/current_emision/curent_audio.mp3', data.audioData, () => console.log('audio saved!') );
-        //this._sliceAudio();
+        this._sliceAudio();
         //const stream = await blobObj.stream();
         //const outbound = JSON.stringify(data);
     }
