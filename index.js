@@ -75,9 +75,11 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Users App - Backend!!!" });
 });
+
 require("./routes/person.js")(app);
 require("./routes/users.js")(app);
 require("./routes/author.js")(app);
+require("./routes/estudiante.js")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3001;
@@ -92,7 +94,7 @@ const WSController = new WSControllerClass();
 console.log('hello web socket connection');
 io.on('connection', WSController.connection);
 
-WSController.sendAudioStreamToClients();
+//WSController.sendAudioStreamToClients();
 
 //for(let i = 0; i < 12000; i++) {
 //  setTimeout(async () => {

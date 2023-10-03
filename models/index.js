@@ -22,5 +22,6 @@ db.sequelize = sequelizeInstance;
 db.person = require("./person.js")(sequelizeInstance, Sequelize);
 db.user = require("./user.js")(sequelizeInstance, Sequelize, db.person);
 db.author = require("./author.js")(sequelizeInstance, Sequelize, db.person);
+db.estudiante = require("./estudiante.js")(sequelizeInstance, Sequelize, db.person);
 module.exports = db;
 
