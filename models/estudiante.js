@@ -5,6 +5,9 @@ module.exports = (sequelize, Sequelize, Person) => {
       },
       nro_expediente: {
         type: Sequelize.STRING
+      },
+      year_ingreso: {
+        type: Sequelize.INTEGER
       }
     }, 
     {

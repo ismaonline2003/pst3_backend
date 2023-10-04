@@ -21,8 +21,8 @@ module.exports = (sequelize, Sequelize) => {
       address: {
         type: Sequelize.STRING
       },
-      campo1: {
-        type: Sequelize.STRING
+      foto_carnet: {
+        type: Sequelize.BLOB
       }
     }, 
     {

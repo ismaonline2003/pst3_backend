@@ -145,7 +145,7 @@ exports.update = (req, res) => {
     if (num != 1) {
       res.status(400).send({message: errorMessage});
     } else {
-      Estudiante.update({nro_expediente: req.body.nro_expediente}, {where: { id: id }})
+      Estudiante.update({nro_expediente: req.body.nro_expediente, year_ingreso: req.body.year_ingreso}, {where: { id: id }})
       .then(num => {
           if(num == 1) {
             res.send({message: "El estudiante fue actualizado satisfactoriamente!!"});
