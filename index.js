@@ -54,7 +54,9 @@ db.sequelize.sync({ force: false, alter: true }).then(() => {
   console.log("#droped the database and and re-synced.");
 });
 
-app.use(cors());
+app.use(cors({
+  origin: "*"
+}));
 
 // parse requests of content-type - application/json
 app.use(express.json());

@@ -1,4 +1,5 @@
 const db = require("../models");
+const functions = require('../routes/functions');
 const Person = db.person;
 const Estudiante = db.estudiante;
 const Op = db.Sequelize.Op;
@@ -133,26 +134,31 @@ exports.findOne = (req, res) => {
 // Update a student details by the id in the request
 exports.update = (req, res) => {
   const id = req.params.id;
-
-  Person.update(req.body, {
-    where: { id: id }
-  })
-    .then(num => {
-      if (num == 1) {
-        res.send({
-          message: "Successfully Updated Person."
-        });
-      } else {
-        res.send({
-          message: `Can't update student with id=${id}.Something has gone wrong!`
-        });
-      }
-    })
-    .catch(err => {
-      res.status(500).send({
-        message: "Can't update Person with id=" + id
+  const validatePersonData = functions.personaFieldsValidations(req.body.person);
+  const errorMessage = "Ocurrió un error inesperado al intentar actualizar el estudiante.";
+  if(validatePersonData.status != 'success') {
+    res.status(400).send({message: validatePersonData.msg});
+  }
+  Person.update(req.body.person, {
+    where: { id: req.body.id_persona }
+  }).then(num => {
+    if (num != 1) {
+      res.status(400).send({message: errorMessage});
+    } else {
+      Estudiante.update({nro_expediente: req.body.nro_expediente}, {where: { id: id }})
+      .then(num => {
+          if(num == 1) {
+            res.send({message: "El estudiante fue actualizado satisfactoriamente!!"});
+          } else {
+            res.status(400).send({message: errorMessage});
+          }
+      }).catch(err => {
+          res.status(500).send({message: errorMessage});
       });
-    });
+    }
+  }).catch(err => {
+    res.status(500).send({message: errorMessage});
+  });
 };
 
 // remove a Person with the given id 
