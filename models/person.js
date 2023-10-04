@@ -9,6 +9,9 @@ module.exports = (sequelize, Sequelize) => {
       ci: {
         type: Sequelize.STRING
       },
+      ci_type: {
+        type: Sequelize.STRING
+      },
       phone: {
         type: Sequelize.STRING
       },

@@ -111,23 +111,21 @@ exports.findAll = (req, res) => {
   });
 };
 
-//search a single Person with an id
 exports.findOne = (req, res) => {
   const id = req.params.id;
-
-  Person.findByPk(id)
+  Estudiante.findOne({include: [{model: db.person}], where: {id: id}})
     .then(data => {
       if (data) {
         res.send(data);
       } else {
         res.status(404).send({
-          message: `Cannot find Person with id=${id}.`
+          message: `No se pudo encontrar al estudiante con la referencia ${id}.`
         });
       }
     })
     .catch(err => {
       res.status(500).send({
-        message: "Error retrieving Person with id=" + id
+        message: "Ocurió un error inesperado... Intentelo mas tarde."
       });
     });
 };
