@@ -141,9 +141,13 @@ exports.update = (req, res) => {
   if(validatePersonData.status != 'success') {
     res.status(400).send({message: validatePersonData.msg});
   }
-  if(fotoCarnet) {
-    var imageData = fs.readFileSync(fotoCarnet.path);
-    bodyData.person.foto_carnet = imageData;
+  if(bodyData.updateFotoCarnet) {
+    if(fotoCarnet) {
+      var imageData = fs.readFileSync(fotoCarnet.path);
+      bodyData.person.foto_carnet = imageData;
+    } else {
+      bodyData.person.foto_carnet = null;
+    }
   }
   Person.update(bodyData.person, {
     where: { id: bodyData.id_persona }
