@@ -1,9 +1,9 @@
+const fs = require('fs');
 const db = require("../models");
 const functions = require('../routes/functions');
 const Person = db.person;
 const Estudiante = db.estudiante;
 const Op = db.Sequelize.Op;
-
 exports.create = async (req, res) => {
   const personData = {
     name: req.body.name,
@@ -134,18 +134,24 @@ exports.findOne = (req, res) => {
 // Update a student details by the id in the request
 exports.update = (req, res) => {
   const id = req.params.id;
-  const validatePersonData = functions.personaFieldsValidations(req.body.person);
+  let bodyData = JSON.parse(req.body.data);
+  let fotoCarnet = req.file;
+  const validatePersonData = functions.personaFieldsValidations(bodyData.person);
   const errorMessage = "Ocurrió un error inesperado al intentar actualizar el estudiante.";
   if(validatePersonData.status != 'success') {
     res.status(400).send({message: validatePersonData.msg});
   }
-  Person.update(req.body.person, {
-    where: { id: req.body.id_persona }
+  if(fotoCarnet) {
+    var imageData = fs.readFileSync(fotoCarnet.path);
+    bodyData.person.foto_carnet = imageData;
+  }
+  Person.update(bodyData.person, {
+    where: { id: bodyData.id_persona }
   }).then(num => {
     if (num != 1) {
       res.status(400).send({message: errorMessage});
     } else {
-      Estudiante.update({nro_expediente: req.body.nro_expediente, year_ingreso: req.body.year_ingreso}, {where: { id: id }})
+      Estudiante.update({nro_expediente: bodyData.nro_expediente, year_ingreso: bodyData.year_ingreso}, {where: { id: id }})
       .then(num => {
           if(num == 1) {
             res.send({message: "El estudiante fue actualizado satisfactoriamente!!"});

@@ -1,8 +1,9 @@
 module.exports = app => {
+    const multer = require('multer');
     const functions = require('./functions');
     const estudiante = require("../controllers/estudiante.js");
-  
     var router = require("express").Router();
+    const upload = multer({ dest: 'src/fileUploads' })
     
     router.post("/", estudiante.create);
   
@@ -10,7 +11,7 @@ module.exports = app => {
   
     router.get("/:id", estudiante.findOne);
   
-    router.put("/:id", estudiante.update);
+    router.put("/:id", upload.single('foto_carnet'), estudiante.update);
   
     router.delete("/:id", estudiante.delete);
   

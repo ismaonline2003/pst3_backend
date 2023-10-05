@@ -9,8 +9,9 @@ module.exports = (sequelize, Sequelize) => {
       ci: {
         type: Sequelize.STRING
       },
-      ci_type: {
-        type: Sequelize.STRING
+      ci_type:  {
+        type: Sequelize.ENUM,
+        values: ["V", "J", "E", "P"]
       },
       phone: {
         type: Sequelize.STRING
@@ -22,7 +23,7 @@ module.exports = (sequelize, Sequelize) => {
         type: Sequelize.STRING
       },
       foto_carnet: {
-        type: Sequelize.BLOB
+        type: Sequelize.BLOB('long')
       }
     }, 
     {
