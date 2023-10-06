@@ -4,55 +4,66 @@ const functions = require('../routes/functions');
 const Person = db.person;
 const Estudiante = db.estudiante;
 const Op = db.Sequelize.Op;
+
 exports.create = async (req, res) => {
-  const personData = {
-    name: req.body.name,
-    lastname: req.body.lastname,
-    ci: req.body.ci,
-    phone: req.body.phone,
-    mobile: req.body.mobile,
-    address: req.body.address
-  };
-  const estudianteData = {
-    id_persona: 0,
-    nro_expediente:  req.body.nro_expediente
+  let bodyData = JSON.parse(req.body.data);
+  let fotoCarnet = req.file;
+  const validatePersonData = functions.personaFieldsValidations(bodyData.person);
+  const errorMessage = "Ocurrió un error inesperado al intentar crear a el estudiante.";
+  
+  //validaciones de campos
+  if(validatePersonData.status != 'success') {
+    res.status(400).send({message: validatePersonData.msg});
   }
-  const personaSearch = await Person.findAll({where: {ci: personData.ci}});
-  if(personaSearch) {
-    res.status(400).send({
-        message:
-          err.message || `La persona con la cédula de identidad ${personData.ci} ya esta creada previamente en el sistema.`
-    });
-    return
+
+  
+  if(bodyData.uploadFotoCarnet) {
+    if(fotoCarnet) {
+      var imageData = fs.readFileSync(fotoCarnet.path);
+      bodyData.person.foto_carnet = imageData;
+    } else {
+      bodyData.person.foto_carnet = null;
+    }
   }
-  const estudianteSearch = await Estudiante.findAll({where: {nro_expediente: estudianteData.nro_expediente}});
-  if(estudianteSearch) {
+
+  //validación de ci
+  const personaSearch = await Person.findAll({where: {ci: bodyData.person.ci}});
+  if(personaSearch.length > 0) {
     res.status(400).send({
-        message:
-          err.message || `El estudiante con el número de expediente ${estudianteData.nro_expediente} ya esta creado previamente en el sistema.`
+        message: `La persona con la cédula de identidad ${bodyData.person.ci} ya está creada previamente en el sistema.`
     });
     return
   }
 
-  // Save student in the database
-  Person.create(personData)
-    .then(data => {
-        estudianteData.id_persona = data.id;
-        Estudiante.create(estudianteData)
-        .then(data => {
-            res.send(data);
-        })
-        .catch(err => {
+  //validación de nro de expediente
+  const estudianteSearch = await Estudiante.findAll({where: {nro_expediente: bodyData.nro_expediente}});
+  if(estudianteSearch.length > 0) {
+    res.status(400).send({
+        message:`El estudiante con el número de expediente ${bodyData.nro_expediente} ya esta creado previamente en el sistema.`
+    });
+    return
+  }
+
+  //guarda al estudiante
+  Person.create(bodyData.person)
+    .then(personData => {
+        let estudianteData = {
+          id_persona: personData.dataValues.id,
+          nro_expediente: bodyData.nro_expediente,
+          year_ingreso: bodyData.year_ingreso
+        }
+        Estudiante.create(estudianteData).then(data => {
+            estudianteData.person = personData.dataValues;
+            estudianteData.id = data.dataValues.id;
+            res.send(estudianteData);
+        }).catch(err => {
             res.status(500).send({
-              message:
-                err.message || "Ocurrió un error al momento de crear al estudiante."
+              message: "Ocurrió un error inesperado al momento de crear al estudiante."
             });
         });
-    })
-    .catch(err => {
+    }).catch(err => {
       res.status(500).send({
-        message:
-          err.message || "Ocurrió un error al momento de crear al estudiante."
+        message: "Ocurrió un error inesperado al momento de crear al estudiante."
       });
     });
 };
@@ -132,7 +143,7 @@ exports.findOne = (req, res) => {
 };
 
 // Update a student details by the id in the request
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
   const id = req.params.id;
   let bodyData = JSON.parse(req.body.data);
   let fotoCarnet = req.file;
@@ -149,6 +160,34 @@ exports.update = (req, res) => {
       bodyData.person.foto_carnet = null;
     }
   }
+  const personaSearch = await Person.findAll({where:{
+    [Op.and]: [
+      {ci: {[Op.eq]: bodyData.person.ci}}, 
+      {id: {[Op.ne]: id}}
+    ]
+  }});
+
+  if(personaSearch.length > 0) {
+    res.status(400).send({
+        message: `La persona con la cédula de identidad ${bodyData.person.ci} ya está creada previamente en el sistema.`
+    });
+    return
+  }
+  
+  const estudianteSearch = await Estudiante.findAll({where: {
+      [Op.and]: [
+        {nro_expediente: {[Op.eq]: bodyData.nro_expediente}}, 
+        {id: {[Op.ne]: id}}
+      ]
+  }});
+
+  if(estudianteSearch.length > 0) {
+    res.status(400).send({
+        message:`El estudiante con el número de expediente ${bodyData.nro_expediente} ya esta creado previamente en el sistema.`
+    });
+    return
+  }
+
   Person.update(bodyData.person, {
     where: { id: bodyData.id_persona }
   }).then(num => {

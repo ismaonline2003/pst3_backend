@@ -5,8 +5,8 @@ module.exports = app => {
     var router = require("express").Router();
     const upload = multer({ dest: 'src/fileUploads' })
     
-    router.post("/", estudiante.create);
-  
+    router.post("/",  upload.single('foto_carnet'), estudiante.create);
+    
     router.get("/", estudiante.findAll);
   
     router.get("/:id", estudiante.findOne);
