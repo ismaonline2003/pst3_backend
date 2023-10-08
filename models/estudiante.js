@@ -26,12 +26,13 @@ module.exports = (sequelize, Sequelize, Person) => {
       foreignKey: "id_persona",
       onDelete: 'RESTRICT'
     });
-    /*
-    Person.beforeDestroy((record, options) => {
-      console.log('person beforeDestroy', record.name)
-      throw ('You cannot delete a person');
+    Person.beforeDestroy(async (record, options) => {
+      let searchPersona = await Estudiante.findAll({where: {id_persona: record.id}})
+      if(searchPersona.length > 0) {
+        console.log('No se puede eliminar a este estudiante')
+        throw ('No se puede eliminar a este estudiante');
+      }
     });
-    */
     return Estudiante;
 };
 

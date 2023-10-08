@@ -19,20 +19,29 @@ const db = {};
 
 db.Sequelize = Sequelize;
 db.sequelize = sequelizeInstance;
+/*
 db.sequelize.addHook('beforeDestroy', async (record, options) => {
+  //busca las relaciones con otras tablas y verifica si tiene registros relacionados
+  //en caso de tenerlos, no deja eliminarlos
   let searchRecord = await options.model.findAll({include: {all: true}, where: {id: record.id}})
   if(searchRecord.length > 0) {
+    //console.log(searchRecord[0]._options.includeMap);
     if(searchRecord[0]._options.includeNames) {
-
       if(searchRecord[0]._options.includeNames.length > 0) {
 
         searchRecord[0]._options.includeNames.map((includeName) => {
-          if(
+          console.log(searchRecord[0]._options.includeMap[includeName]);
+          console.log('includeName', searchRecord[0]._options.includeMap[includeName].parent.model == options.model);
+          if(searchRecord[0]._options.includeMap[includeName].parent.model == options.model) {
+
+            if(
               (Array.isArray(searchRecord[0].dataValues[includeName]) && searchRecord[0].dataValues[includeName].length > 0) ||
               (!Array.isArray(searchRecord[0].dataValues[includeName]) && searchRecord[0].dataValues[includeName])
             ) {
-            console.log('No se puede eliminar este registro porque tiene otros registros asociados');
-            throw ('No se puede eliminar este registro porque tiene otros registros asociados');
+              console.log('No se puede eliminar este registro porque tiene otros registros asociados');
+              throw ('No se puede eliminar este registro porque tiene otros registros asociados');
+            }
+
           }
 
         })
@@ -42,6 +51,7 @@ db.sequelize.addHook('beforeDestroy', async (record, options) => {
     } 
   }
 });
+*/
 db.person = require("./person.js")(sequelizeInstance, Sequelize);
 db.user = require("./user.js")(sequelizeInstance, Sequelize, db.person);
 db.author = require("./author.js")(sequelizeInstance, Sequelize, db.person);
