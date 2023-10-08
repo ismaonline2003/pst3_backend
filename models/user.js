@@ -19,8 +19,14 @@ module.exports = (sequelize, Sequelize, Person) => {
       timestamps: true,
     },
     );
+    Person.hasOne(user, {
+      foreignKey: "person_id",
+      onDelete: 'RESTRICT'
+    });
+
     user.belongsTo(Person, {
       foreignKey: "person_id",
+      onDelete: 'RESTRICT'
     });
 
     user.prototype.holaMundo = function () {

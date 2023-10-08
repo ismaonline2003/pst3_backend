@@ -125,13 +125,14 @@ exports.findAll = (req, res) => {
 
 exports.findOne = (req, res) => {
   const id = req.params.id;
-  Estudiante.findOne({include: [{model: db.person}], where: {id: id}})
+  Estudiante.findOne({include: [{model: db.person}], where: {id: id}, paranoid: true})
     .then(data => {
+      console.log(data);
       if (data) {
         res.send(data);
       } else {
         res.status(404).send({
-          message: `No se pudo encontrar al estudiante con la referencia ${id}.`
+          message: `No se pudo encontrar al estudiante.`
         });
       }
     })
@@ -213,24 +214,25 @@ exports.update = async (req, res) => {
 // remove a Person with the given id 
 exports.delete = (req, res) => {
   const id = req.params.id;
-
+  //Estudiante
   Person.destroy({
-    where: { id: id }
+    where: { id: id },
+    individualHooks: true
   })
     .then(num => {
       if (num == 1) {
         res.send({
-          message: "Successfully deleted student!"
+          message: "El estudiante fue eliminado exitosamente!!"
         });
       } else {
         res.send({
-          message: `Something went wrong!Can't delete Person with id=${id}.`
+          message: `No se pudo eliminar al estudiante.`
         });
       }
     })
     .catch(err => {
       res.status(500).send({
-        message: "Can't delete Person with id=" + id
+        message: "No se pudo eliminar al estudiante"
       });
     });
 };

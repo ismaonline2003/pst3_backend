@@ -16,11 +16,22 @@ module.exports = (sequelize, Sequelize, Person) => {
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
       paranoid: true,
-      timestamps: true,
+      timestamps: true
+    });
+    Person.hasOne(Estudiante,  {
+      foreignKey: "id_persona",
+      onDelete: 'RESTRICT'
     });
     Estudiante.belongsTo(Person, {
       foreignKey: "id_persona",
+      onDelete: 'RESTRICT'
     });
+    /*
+    Person.beforeDestroy((record, options) => {
+      console.log('person beforeDestroy', record.name)
+      throw ('You cannot delete a person');
+    });
+    */
     return Estudiante;
 };
 

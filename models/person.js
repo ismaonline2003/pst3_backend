@@ -27,7 +27,7 @@ module.exports = (sequelize, Sequelize) => {
       },
       foto_carnet: {
         type: Sequelize.BLOB('long')
-      }
+      }    
     }, 
     {
       tableName: 'person',
@@ -35,7 +35,7 @@ module.exports = (sequelize, Sequelize) => {
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
       paranoid: true,
-      timestamps: true,
+      timestamps: true
     });
     return Person;
 };
