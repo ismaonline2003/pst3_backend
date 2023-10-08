@@ -19,6 +19,10 @@ module.exports = (sequelize, Sequelize) => {
       phone: {
         type: Sequelize.STRING
       },
+      sexo: {
+        type: Sequelize.ENUM,
+        values: ["M", "F"]
+      },
       mobile: {
         type: Sequelize.STRING
       },

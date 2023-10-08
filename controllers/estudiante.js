@@ -160,13 +160,14 @@ exports.update = async (req, res) => {
       bodyData.person.foto_carnet = null;
     }
   }
-  const personaSearch = await Person.findAll({where:{
+  let ciCondition = {where: {
     [Op.and]: [
       {ci: {[Op.eq]: bodyData.person.ci}}, 
-      {id: {[Op.ne]: id}}
+      {id: {[Op.ne]: bodyData.id_persona}}
     ]
-  }});
-
+  }};
+  const personaSearch = await Person.findAll(ciCondition);
+  console.log(personaSearch);
   if(personaSearch.length > 0) {
     res.status(400).send({
         message: `La persona con la cédula de identidad ${bodyData.person.ci} ya está creada previamente en el sistema.`
