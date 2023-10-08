@@ -143,7 +143,6 @@ exports.findOne = (req, res) => {
     });
 };
 
-// Update a student details by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
   let bodyData = JSON.parse(req.body.data);
@@ -211,11 +210,9 @@ exports.update = async (req, res) => {
   });
 };
 
-// remove a Person with the given id 
 exports.delete = (req, res) => {
   const id = req.params.id;
-  //Estudiante
-  Person.destroy({
+  Estudiante.destroy({
     where: { id: id },
     individualHooks: true
   })
