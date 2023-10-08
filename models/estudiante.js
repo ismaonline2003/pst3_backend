@@ -27,8 +27,9 @@ module.exports = (sequelize, Sequelize, Person) => {
       onDelete: 'RESTRICT'
     });
     Person.beforeDestroy(async (record, options) => {
-      let searchPersona = await Estudiante.findAll({where: {id_persona: record.id}})
-      if(searchPersona.length > 0) {
+      //validación de que la persona no tenga algun estudiante asociado
+      let searchStudent = await Estudiante.findAll({where: {id_persona: record.id}})
+      if(searchStudent.length > 0) {
         console.log('No se puede eliminar a este estudiante')
         throw ('No se puede eliminar a este estudiante');
       }

@@ -29,6 +29,14 @@ module.exports = (sequelize, Sequelize, Person) => {
       onDelete: 'RESTRICT'
     });
 
+    Person.beforeDestroy(async (record, options) => {
+      let searchUser = await user.findAll({where: {person_id: record.id}})
+      if(searchUser.length > 0) {
+        console.log('No se puede eliminar a este usuario')
+        throw ('No se puede eliminar a este usuario');
+      }
+    });
+
     user.prototype.holaMundo = function () {
       console.log('Hola Mundo')
     }
