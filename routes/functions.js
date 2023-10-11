@@ -7,9 +7,9 @@ exports.verifyToken = (req, res, next) => {
        req.user = user;
        next();
     });
- }
+}
 
- exports.personaFieldsValidations = (data) => {
+exports.personaFieldsValidations = (data) => {
    let objReturn = {status: 'success', msg: ''}
    const whiteSpacesRegEx = /\s/g;
    const numbersRegEx = /\d/g;
@@ -122,4 +122,13 @@ exports.verifyToken = (req, res, next) => {
    }
    
    return objReturn;
+}
+
+exports.onDeleteRestrictValidation = async (model, foreignKey, id) => {
+    //validación de que la persona no tenga algun registro asociado
+    let searchRecord = await model.findAll({where: {[foreignKey]: id}})
+    if(searchRecord.length > 0) {
+      console.log('No se puede eliminar este registro')
+      throw ('No se puede eliminar este registro');
+    }
 }

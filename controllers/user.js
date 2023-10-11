@@ -129,7 +129,6 @@ exports.delete = (req, res) => {
 
 // login a User with the given id 
 exports.login = (req, res) => {
-    console.log(req.body);
     const bcrypt = require("bcrypt");
     const jwt = require('jsonwebtoken');
     const login = req.body.login;
@@ -152,7 +151,6 @@ exports.login = (req, res) => {
                 "iat": currentTime.getTime()
               }, 'secret_key', {expiresIn: '10h'}, (err,token) => {
                   if(err){
-                    console.log(err);
                     res.status(500).send({
                       message: "Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde",
                       error: err
@@ -175,7 +173,6 @@ exports.login = (req, res) => {
         });
       })
     .catch(err => {
-      console.log(err);
       res.status(500).send({
         message: "Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde",
         error: err

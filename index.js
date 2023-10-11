@@ -97,13 +97,13 @@ console.log('hello web socket connection');
 io.on('connection', WSController.connection);
 
 //WSController.sendAudioStreamToClients();
-
-//for(let i = 0; i < 12000; i++) {
-//  setTimeout(async () => {
-//    await WSController.sendAudioStreamToClients();
-//  }, 3000);
-//}
-
+/*
+for(let i = 0; i < 12000; i++) {
+  setTimeout(async () => {
+    await WSController.sendAudioStreamToClients();
+  }, 3000);
+}
+*/
  //const wss = new WebSocket.Server({ port: 3002 });
 //const clients = new Map();
 //wsController.clients = clients;

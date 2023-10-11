@@ -53,9 +53,23 @@ db.sequelize.addHook('beforeDestroy', async (record, options) => {
 });
 */
 db.person = require("./person.js")(sequelizeInstance, Sequelize);
+db.carrera_universitaria = require("./carrera_universitaria.js")(sequelizeInstance, Sequelize);
 db.user = require("./user.js")(sequelizeInstance, Sequelize, db.person);
 db.author = require("./author.js")(sequelizeInstance, Sequelize, db.person);
 db.estudiante = require("./estudiante.js")(sequelizeInstance, Sequelize, db.person);
+db.profesor = require("./profesor.js")(sequelizeInstance, Sequelize, db.person);
+db.seccion = require("./seccion.js")(sequelizeInstance, Sequelize, db.carrera_universitaria);
+db.inscripcion = require("./inscripcion.js")(sequelizeInstance, Sequelize, db.estudiante, db.seccion);
+db.proyecto = require("./proyecto.js")(sequelizeInstance, Sequelize, db.seccion);
+db.integrante_proyecto = require("./integrante_proyecto.js")(sequelizeInstance, Sequelize, db.proyecto, db.inscripcion);
+db.proyecto_archivo = require("./proyecto_archivo.js")(sequelizeInstance, Sequelize, db.proyecto);
+db.categoria_noticia = require("./categoria_noticia.js")(sequelizeInstance, Sequelize);
+db.noticia = require("./noticia.js")(sequelizeInstance, Sequelize, db.user, db.categoria_noticia);
+db.noticia_imagen = require("./noticia_imagen.js")(sequelizeInstance, Sequelize, db.noticia);
+db.emision_radio = require("./emision_radio.js")(sequelizeInstance, Sequelize, db.user);
+db.radio_suscriptor = require("./radio_suscriptor.js")(sequelizeInstance, Sequelize, db.user);
+db.radio_espectador = require("./radio_espectador.js")(sequelizeInstance, Sequelize);
+
 //foreing keys
 module.exports = db;
 

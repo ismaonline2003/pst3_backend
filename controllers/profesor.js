@@ -2,7 +2,7 @@ const fs = require('fs');
 const db = require("../models");
 const functions = require('../routes/functions');
 const Person = db.person;
-const Estudiante = db.estudiante;
+const Profesor = db.profesor;
 const Op = db.Sequelize.Op;
 
 exports.create = async (req, res) => {
@@ -36,7 +36,7 @@ exports.create = async (req, res) => {
   }
 
   //validación de nro de expediente
-  const estudianteSearch = await Estudiante.findAll({where: {nro_expediente: bodyData.nro_expediente}});
+  const estudianteSearch = await Profesor.findAll({where: {nro_expediente: bodyData.nro_expediente}});
   if(estudianteSearch.length > 0) {
     res.status(400).send({
         message:`El estudiante con el número de expediente ${bodyData.nro_expediente} ya esta creado previamente en el sistema.`
@@ -52,7 +52,7 @@ exports.create = async (req, res) => {
           nro_expediente: bodyData.nro_expediente,
           year_ingreso: bodyData.year_ingreso
         }
-        Estudiante.create(estudianteData).then(data => {
+        Profesor.create(estudianteData).then(data => {
             estudianteData.person = personData.dataValues;
             estudianteData.id = data.dataValues.id;
             res.send(estudianteData);

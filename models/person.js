@@ -31,7 +31,7 @@ module.exports = (sequelize, Sequelize) => {
       },
       foto_carnet: {
         type: Sequelize.BLOB('long')
-      }    
+      }
     }, 
     {
       tableName: 'person',

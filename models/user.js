@@ -9,6 +9,16 @@ module.exports = (sequelize, Sequelize, Person) => {
       },
       person_id: {
         type: Sequelize.INTEGER
+      },
+      verifiedDate: {
+        type: Sequelize.DATE
+      },
+      verifiedToken: {
+        type: Sequelize.STRING
+      },
+      rol: {
+        type: Sequelize.ENUM,
+        values: ["A", "P", "ER", "E"]
       }
     },
     {

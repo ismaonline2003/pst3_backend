@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize, Person) => {
+    const functions = require('../routes/functions');
     const Estudiante = sequelize.define("estudiante", {
       id_persona: {
         type: Sequelize.INTEGER
@@ -27,12 +28,7 @@ module.exports = (sequelize, Sequelize, Person) => {
       onDelete: 'RESTRICT'
     });
     Person.beforeDestroy(async (record, options) => {
-      //validación de que la persona no tenga algun estudiante asociado
-      let searchStudent = await Estudiante.findAll({where: {id_persona: record.id}})
-      if(searchStudent.length > 0) {
-        console.log('No se puede eliminar a este estudiante')
-        throw ('No se puede eliminar a este estudiante');
-      }
+      functions.onDeleteRestrictValidation(Estudiante, "id_persona", record.id);
     });
     return Estudiante;
 };
