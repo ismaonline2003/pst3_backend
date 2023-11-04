@@ -58,12 +58,12 @@ exports.create = async (req, res) => {
             res.send(estudianteData);
         }).catch(err => {
             res.status(500).send({
-              message: "Ocurrió un error inesperado al momento de crear al estudiante."
+              message: errorMessage
             });
         });
     }).catch(err => {
       res.status(500).send({
-        message: "Ocurrió un error inesperado al momento de crear al estudiante."
+        message: errorMessage
       });
     });
 };

@@ -55,7 +55,7 @@ db.sequelize.addHook('beforeDestroy', async (record, options) => {
 db.person = require("./person.js")(sequelizeInstance, Sequelize);
 db.carrera_universitaria = require("./carrera_universitaria.js")(sequelizeInstance, Sequelize);
 db.user = require("./user.js")(sequelizeInstance, Sequelize, db.person);
-db.author = require("./author.js")(sequelizeInstance, Sequelize, db.person);
+//db.author = require("./author.js")(sequelizeInstance, Sequelize, db.person);
 db.estudiante = require("./estudiante.js")(sequelizeInstance, Sequelize, db.person);
 db.profesor = require("./profesor.js")(sequelizeInstance, Sequelize, db.person);
 db.seccion = require("./seccion.js")(sequelizeInstance, Sequelize, db.carrera_universitaria);
@@ -69,6 +69,9 @@ db.noticia_imagen = require("./noticia_imagen.js")(sequelizeInstance, Sequelize,
 db.emision_radio = require("./emision_radio.js")(sequelizeInstance, Sequelize, db.user);
 db.radio_suscriptor = require("./radio_suscriptor.js")(sequelizeInstance, Sequelize, db.user);
 db.radio_espectador = require("./radio_espectador.js")(sequelizeInstance, Sequelize);
+db.visualizacion_emision_radio = require("./visualizacion_emision_radio.js")(sequelizeInstance, Sequelize, db.emision_radio, db.radio_suscriptor, db.radio_espectador);
+db.radio_espectador_mensaje = require("./radio_espectador_mensaje.js")(sequelizeInstance, Sequelize, db.emision_radio, db.radio_suscriptor, db.radio_espectador);
+
 
 //foreing keys
 module.exports = db;

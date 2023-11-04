@@ -78,10 +78,13 @@ app.get("/", (req, res) => {
   res.json({ message: "Welcome to Users App - Backend!!!" });
 });
 
+//including routes
 require("./routes/person.js")(app);
 require("./routes/users.js")(app);
 require("./routes/author.js")(app);
 require("./routes/estudiante.js")(app);
+require("./routes/seccion.js")(app);
+require("./routes/carrera_universitaria.js")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3001;

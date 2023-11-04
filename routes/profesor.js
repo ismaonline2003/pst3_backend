@@ -1,7 +1,7 @@
 module.exports = app => {
     const multer = require('multer');
     const functions = require('./functions');
-    const estudiante = require("../controllers/profesor.js");
+    const profesor = require("../controllers/profesor.js");
     var router = require("express").Router();
     const upload = multer({ dest: 'src/fileUploads' })
     

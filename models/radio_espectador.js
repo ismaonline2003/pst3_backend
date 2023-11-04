@@ -4,8 +4,7 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.BOOLEAN
         },
         username: {
-            type: Sequelize.STRING,
-            unique: true
+            type: Sequelize.STRING
         },
         ip: {
             type: Sequelize.STRING

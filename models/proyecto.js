@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize, Seccion) => {
+    const functions = require('../routes/functions');
     const Proyecto = sequelize.define("proyecto", {
       id_seccion: {
         type: Sequelize.INTEGER
