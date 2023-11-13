@@ -142,6 +142,30 @@ exports.findOne = (req, res) => {
     });
 };
 
+exports.searchBarBySeccion = async (req, res) => {
+  const value = req.query.value;
+  const seccion_id = req.query.seccion_id;
+  let queryRes = await db.sequelize.query(`
+      SELECT 
+        e.id AS id,
+        p.ci_type AS ci_type, 
+        p.ci AS ci,
+        p.name AS nombre,
+        p.lastname AS apellido,
+        CONCAT(p.ci_type, '-', p.ci, ' ', p.name, ' ', p.lastname) AS ci_nombre
+      FROM inscripcion AS i
+      INNER JOIN estudiante AS e ON e.id = i.estudiante_id
+      INNER JOIN person AS p ON p.id = e.id_persona
+      WHERE i.seccion_id = ${seccion_id}
+      AND CONCAT(p.ci_type, '-', p.ci, ' ', p.name, ' ', p.lastname) LIKE '%${value}%'
+      AND i.deleted_at IS NULL
+      AND e.deleted_at IS NULL
+      AND p.deleted_at IS NULL
+    `,
+  );
+  res.status(200).send({data: queryRes});
+}
+
 exports.update = async (req, res) => {
   const id = req.params.id;
   let bodyData = JSON.parse(req.body.data);

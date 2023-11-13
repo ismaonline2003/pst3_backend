@@ -12,6 +12,9 @@ module.exports = (sequelize, Sequelize, Proyecto) => {
       file: {
         type: Sequelize.BLOB
       },
+      url: {
+        type: Sequelize.STRING
+      },
       posicion: {
         type: Sequelize.INTEGER
       },

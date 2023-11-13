@@ -95,13 +95,17 @@ exports.create = async (req, res) => {
 
 exports.findAll = (req, res) => {
   const parameter = req.query.parameter;
+  const parameter2 = req.query.parameter_2;
+  const parameter3 = req.query.parameter_3;
   const value = req.query.value;
+  const value2 = req.query.value_2;
+  const value3 = req.query.value_3;
   const limitParameter = req.query.limit;
   let limit = 25;
   if(limitParameter && !isNaN(limitParameter)) {
     limit = parseInt(limitParameter);
   }
-  var condition = [];
+  var condition = {};
   if(parameter) {
     if(parameter == 'nombre') {
         condition = {nombre: {[Op.like]: `%${value}%`}};
@@ -115,6 +119,9 @@ exports.findAll = (req, res) => {
     if(parameter == 'turno') {
         condition = {turno: {[Op.eq]: value}};
     }
+    if(parameter == 'pnf_id') {
+      condition = {pnf_id: {[Op.eq]: parseInt(value)}};
+    }
     //cambiar
     if(parameter == 'pnf') {
         condition = {nombre_pnf: {[Op.like]: `%${value}%`}};
@@ -123,6 +130,31 @@ exports.findAll = (req, res) => {
 
   let searchConfig = {include: [{model: db.carrera_universitaria}], limit:limit};
   if(!['pnf'].includes(parameter)) {
+
+    if(parameter2 && value2) {
+      if(parameter2 == 'pnf_id') {
+        condition.pnf_id = {[Op.eq]: parseInt(value2)};
+      }
+      if(parameter2 == 'trayecto') {
+        condition.trayecto = {[Op.eq]: value2};
+      }
+      if(parameter2 == 'year') {
+        condition.year = {[Op.eq]: parseInt(value2)};
+      }
+    }
+
+    if(parameter3 && value3) {
+      if(parameter3 == 'pnf_id') {
+        condition.pnf_id = {[Op.eq]: parseInt(value3)};
+      }
+      if(parameter3 == 'trayecto') {
+        condition.trayecto = {[Op.eq]: value3};
+      }
+      if(parameter3 == 'year') {
+        condition.year = {[Op.eq]: parseInt(value3)};
+      }
+    }
+
     searchConfig['where'] = condition;
   } else {
     searchConfig.include[0]['where'] = condition;
