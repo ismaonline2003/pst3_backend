@@ -2,6 +2,9 @@ const fs = require('fs');
 const db = require("../models");
 const functions = require('../routes/functions');
 const Proyecto = db.proyecto;
+const IntegranteProyecto = db.integrante_proyecto;
+const ProyectoArchivo = db.proyecto_archivo;
+
 const Seccion = db.seccion;
 const CarreraUniversitaria = db.carrera_universitaria;
 const Op = db.Sequelize.Op;
@@ -32,7 +35,7 @@ const getTurnoName = (turno) => {
   
 
 exports.create = async (req, res) => {
-    const bodyData = req.body;
+    const bodyData = JSON.parse(req.body.data);
     const validations= recordValidations(bodyData);
     const errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
 
@@ -40,14 +43,12 @@ exports.create = async (req, res) => {
       res.status(400).send({message: validations.msg});
     }
 
-    Proyecto.create({
-      pnf_id: bodyData.pnf_id,
-      year: bodyData.year,
-      trayecto: bodyData.trayecto,
+    await Proyecto.create({
+      id_seccion: bodyData.id_seccion,
       nombre: bodyData.nombre,
-      turno: bodyData.turno
-    })
-    .then(recordRes => {
+      descripcion: bodyData.descripcion
+    }).then(proyectoRes => {
+      
       res.status(200).send(recordRes.dataValues);
     }).catch(err => {
       res.status(500).send({message: errorMessage});
