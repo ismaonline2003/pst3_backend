@@ -1,7 +1,13 @@
 module.exports = (sequelize, Sequelize, Proyecto, Inscripcion) => {
     const IntegranteProyecto = sequelize.define("integrante_proyecto", {
+        id: {
+          type: Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
         proyecto_id: {
             type: Sequelize.INTEGER,
+            primaryKey: false,
             references: {
               model: Proyecto,
               key: 'id'
@@ -9,6 +15,7 @@ module.exports = (sequelize, Sequelize, Proyecto, Inscripcion) => {
         },
         inscripcion_id: {
             type: Sequelize.INTEGER,
+            primaryKey: false,
             references: {
               model: Inscripcion,
               key: 'id'

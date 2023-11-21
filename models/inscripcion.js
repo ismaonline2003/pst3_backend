@@ -1,8 +1,14 @@
 module.exports = (sequelize, Sequelize, Estudiante, Seccion) => {
     const functions = require('../routes/functions');
     const Inscripcion = sequelize.define("inscripcion", {
+        id: {
+          type: Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
         estudiante_id: {
             type: Sequelize.INTEGER,
+            primaryKey: false,
             references: {
               model: Estudiante,
               key: 'id'
@@ -10,6 +16,7 @@ module.exports = (sequelize, Sequelize, Estudiante, Seccion) => {
         },
         seccion_id: {
             type: Sequelize.INTEGER,
+            primaryKey: false,
             references: {
               model: Seccion,
               key: 'id'

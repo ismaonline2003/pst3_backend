@@ -32,12 +32,131 @@ const getTurnoName = (turno) => {
     }
     return turnoName;
 }
+
+const createIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
+    let objReturn = {status: 'success', msg: '', data: []};
+    for(let i = 0; i < integrantesData.length; i++) {
+      let integrante = integrantesData[i];
+      let query1 = await db.sequelize.query(`
+            SELECT 
+              ip.inscripcion_id AS inscripcion_id
+            FROM integrante_proyecto AS ip
+            INNER JOIN inscripcion AS i ON i.id = ip.inscripcion_id
+            INNER JOIN estudiante AS e ON e.id = i.estudiante_id
+            WHERE ip.proyecto_id = ${proyectoId}
+            AND i.seccion_id = ${seccionId}
+            AND i.estudiante_id = ${integrante.id}
+            AND ip.deleted_at IS NULL
+            AND i.deleted_at IS NULL
+            AND e.deleted_at IS NULL
+            LIMIT 1
+        `);
+
+        if(query1[0].length == 0) {
+            let query2 = await db.sequelize.query(`
+                SELECT 
+                  i.id AS id
+                FROM inscripcion AS i
+                INNER JOIN estudiante AS e ON e.id = i.estudiante_id
+                WHERE i.estudiante_id = ${integrante.id}
+                AND i.seccion_id = ${seccionId}
+                AND i.deleted_at IS NULL
+                AND e.deleted_at IS NULL
+                LIMIT 1
+            `);
+
+            if(query2[0].length > 0) {
+                let integranteData = {proyecto_id: proyectoId, inscripcion_id: query2[0][0]['id']}
+                await IntegranteProyecto.create(integranteData, {transaction: t})
+                .then(integranteRes => {
+                    integranteData.record_id = integranteRes.id;
+                    objReturn.data.push(integranteData)
+                })
+                .catch(async (err) => {
+                    objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+                    return objReturn;
+                });  
+            } 
+            
+            if(query2[0].length == 0) {
+                objReturn = {status: 'error', msg: `El estudiante ${integrante.ci_nombre} no pertenece a la sección seleccionada.`, data: []};
+                return objReturn;
+            }
+        }
+    }
+    return objReturn;
+}
+
+const getFileName = (file) => {
+  let filename = "";
+  let type = "";
+  filename = `${file.filename}`;
+  if(file.mimetype == 'image/jpeg') {
+    type = "jpeg";
+  }
+  if(file.mimetype == 'image/jpg') {
+    type = "jpg";
+  }
+  if(file.mimetype == 'image/png') {
+    type = "png";
+  }
+  if(file.mimetype == 'application/pdf') {
+    type = "pdf";
+  }
+  filename += `.${type}`;
+  return filename;
+}
+
+const createProjectFiles = async (projectId, fileList, files, type, transaction) => {
+    let objReturn = {status: 'success', msg: '', data: []};
+    for(let i = 0; i < fileList.length; i++) {
+        let item = fileList[i];
+        let file = files[item.index];
+        const fileRead = fs.readFileSync(file.path);
+        const filename = getFileName(file);
+        const filePath = `src/fileUploads/${filename}`;
+        fs.writeFileSync(filePath, fileRead);
+        fs.unlinkSync(file.path);
+        let fileData = {};
+        if(type == 'IMG') {
+            fileData = {
+                id_proyecto: projectId,
+                nombre: item.nombre,
+                descripcion: item.descripcion,
+                posicion: item.position,
+                tipo: type,
+                url: filePath
+            }
+        }
+        if(type == 'DOC') {
+          fileData = {
+              id_proyecto: projectId,
+              nombre: item.nombre,
+              posicion: item.position,
+              tipo: type,
+              url: filePath
+          }
+        }
+
+        await ProyectoArchivo.create(fileData, {transaction:transaction})
+        .then((proyectoArchivoRes) => {
+            fileData.id = proyectoArchivoRes.id;
+            objReturn.data.push(fileData)
+        })
+        .catch((err) => {
+            objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+            return objReturn;
+        })
+    }
+    return objReturn;
+}
   
 
 exports.create = async (req, res) => {
+    const t = await db.sequelize.transaction();
     const bodyData = JSON.parse(req.body.data);
     const validations= recordValidations(bodyData);
-    const errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
+    let errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
 
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
@@ -47,10 +166,33 @@ exports.create = async (req, res) => {
       id_seccion: bodyData.id_seccion,
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion
-    }).then(proyectoRes => {
-      
-      res.status(200).send(recordRes.dataValues);
-    }).catch(err => {
+    }, {transaction: t}).then(async (proyectoRes) => {
+      bodyData.id = proyectoRes.id;
+      const integrantesCreate = await createIntegrantes(proyectoRes.id, bodyData.id_seccion, bodyData.integrantes, t);
+      if(integrantesCreate.status != 'success') {
+        errorMessage = integrantesCreate.msg;
+        throw new Error(errorMessage);
+      }
+      bodyData.integrantes = integrantesCreate.data;
+
+      const imgsCreate = await createProjectFiles(proyectoRes.id, bodyData.imgs, req.files, 'IMG', t);
+      if(imgsCreate.status != 'success') {
+        errorMessage = imgsCreate.msg;
+        throw new Error(errorMessage);
+      }
+      bodyData.imgs = imgsCreate.data;
+
+      const docsCreate = await createProjectFiles(proyectoRes.id, bodyData.docs, req.files, 'DOC', t);
+      if(docsCreate.status != 'success') {
+        errorMessage = docsCreate.msg;
+        throw new Error(errorMessage);
+      }
+      bodyData.docs = docsCreate.data;
+      await t.commit();
+      const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}})
+      res.status(200).send(proyectoSearch.dataValues);
+    }).catch(async (err) => {
+      await t.rollback();
       res.status(500).send({message: errorMessage});
     });
 };

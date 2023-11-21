@@ -5,7 +5,7 @@ module.exports = app => {
     var router = require("express").Router();
     const upload = multer({ dest: 'src/fileUploads' })
     
-    router.post("/",  upload.single('foto_proyecto'), proyecto.create);
+    router.post("/", upload.array('files', 71), proyecto.create);
     
     router.get("/", proyecto.findAll);
   
