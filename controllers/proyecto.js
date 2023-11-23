@@ -161,7 +161,9 @@ exports.create = async (req, res) => {
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
-
+    const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: 133}})
+    res.status(200).send(proyectoSearch.dataValues);
+    return;
     await Proyecto.create({
       id_seccion: bodyData.id_seccion,
       nombre: bodyData.nombre,
@@ -256,7 +258,7 @@ exports.findAll = async (req, res) => {
 
 exports.findOne = (req, res) => {
   const id = req.params.id;
-  Proyecto.findOne({include: [{model: db.carrera_universitaria}], where: {id: id}, paranoid: true})
+  Proyecto.findOne({include: { all: true, nested: true }, where: {id: id}, paranoid: true})
     .then(data => {
       if (data) {
         res.send(data);

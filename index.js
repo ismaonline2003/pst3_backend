@@ -60,6 +60,7 @@ app.use(cors({
 
 // parse requests of content-type - application/json
 app.use(express.json());
+app.use(express.static('/src/fileUploads'));
 
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
@@ -86,6 +87,7 @@ require("./routes/estudiante.js")(app);
 require("./routes/carrera_universitaria.js")(app);
 require("./routes/seccion.js")(app);
 require("./routes/proyecto.js")(app);
+require("./routes/files.js")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3001;
