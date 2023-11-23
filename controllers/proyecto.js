@@ -161,9 +161,6 @@ exports.create = async (req, res) => {
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
-    const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: 133}})
-    res.status(200).send(proyectoSearch.dataValues);
-    return;
     await Proyecto.create({
       id_seccion: bodyData.id_seccion,
       nombre: bodyData.nombre,
