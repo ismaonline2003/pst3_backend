@@ -251,8 +251,6 @@ exports.findAll = async (req, res) => {
     });
 };
 
-
-
 exports.findOne = (req, res) => {
   const id = req.params.id;
   Proyecto.findOne({include: { all: true, nested: true }, where: {id: id}, paranoid: true})
