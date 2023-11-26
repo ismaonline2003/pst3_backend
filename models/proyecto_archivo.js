@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize, Proyecto) => {
+    const functions = require('../routes/functions');
     const proyectoArchivo = sequelize.define("proyecto_archivo", {
       id_proyecto: {
         type: Sequelize.INTEGER
@@ -33,15 +34,17 @@ module.exports = (sequelize, Sequelize, Proyecto) => {
     });
     Proyecto.hasMany(proyectoArchivo,  {
         foreignKey: "id_proyecto",
-        onDelete: 'RESTRICT'
+        onDelete: 'cascade'
     });
     proyectoArchivo.belongsTo(Proyecto, {
       foreignKey: "id_proyecto",
       onDelete: 'RESTRICT'
     });
     //hooks validations
+    /*
     Proyecto.beforeDestroy(async (record, options) => {
         functions.onDeleteRestrictValidation(proyectoArchivo, "id_proyecto", record.id);
     });
+    */
     return proyectoArchivo;
 };

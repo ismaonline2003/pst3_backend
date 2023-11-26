@@ -423,14 +423,55 @@ exports.update = async (req, res) => {
       });
 };
 
-exports.delete = (req, res) => {
+const deleteRelatedRecords = async(projectId, transaction) => {
+  let objReturn = {status: 'success', msg: '', data: {integrantes: [], files: []}};
+  let integrantesQuery = await db.sequelize.query(`SELECT id FROM integrante_proyecto WHERE proyecto_id = ${projectId} AND deleted_at IS NULL`);
+  let proyectoArchivoQuery = await db.sequelize.query(`SELECT id FROM proyecto_archivo WHERE id_proyecto = ${projectId} AND deleted_at IS NULL`);
+  if(integrantesQuery.length > 0) {
+    for(let i = 0; i < integrantesQuery[0].length; i++) {
+      const record = integrantesQuery[0][i];
+      await IntegranteProyecto.destroy({where: { id: record.id }, individualHooks: true, transaction: transaction})
+      .then(deleteRes => {
+        objReturn.data.integrantes.push(record.id);
+      })
+      .catch(async (err) => {
+          objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+          return objReturn;
+      });  
+    }
+  }
+  if(proyectoArchivoQuery.length > 0) {
+    for(let i = 0; i < proyectoArchivoQuery[0].length; i++) {
+      const record = proyectoArchivoQuery[0][i];
+      await ProyectoArchivo.destroy({where: { id: record.id }, individualHooks: true, transaction: transaction})
+      .then(deleteRes => {
+        objReturn.data.files.push(record.id);
+      })
+      .catch(async (err) => {
+          objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+          return objReturn;
+      });  
+    }
+  }
+  return objReturn;
+}
+
+exports.delete = async (req, res) => {
     const id = req.params.id;
+    const t = await db.sequelize.transaction();
+    const projectDeleteRelatedRecords = await deleteRelatedRecords(id, t);
+    if(projectDeleteRelatedRecords.status != 'success') {
+      await t.rollback();
+      res.status(500).send({message: "Ocurrió un error durante la eliminación del proyecto. Este error es relacionado a la eliminación de los integrnates y archivos relacionados."});
+    }
     Proyecto.destroy({
       where: { id: id },
-      individualHooks: true
+      individualHooks: true,
+      transaction: t
     })
     .then(num => {
         if (num == 1) {
+          t.commit();
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });
@@ -442,8 +483,6 @@ exports.delete = (req, res) => {
     })
     .catch(err => {
       console.log(err);
-      res.status(500).send({
-        message: "No se pudo eliminar el registro"
-      });
+      res.status(500).send({message: "No se pudo eliminar el registro"});
     });
 };

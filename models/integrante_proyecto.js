@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize, Proyecto, Inscripcion) => {
+    const functions = require('../routes/functions');
     const IntegranteProyecto = sequelize.define("integrante_proyecto", {
         id: {
           type: Sequelize.INTEGER,
@@ -30,12 +31,14 @@ module.exports = (sequelize, Sequelize, Proyecto, Inscripcion) => {
       paranoid: true,
       timestamps: true
     });
-    Proyecto.belongsToMany(Inscripcion, { through: IntegranteProyecto, foreignKey: "proyecto_id"});
+    Proyecto.belongsToMany(Inscripcion, { through: IntegranteProyecto, foreignKey: "proyecto_id", onDelete: 'cascade'});
     Inscripcion.belongsToMany(Proyecto, { through: IntegranteProyecto,  foreignKey: "inscripcion_id"});
     //validations in hooks
+    /*
     Proyecto.beforeDestroy(async (record, options) => {
         functions.onDeleteRestrictValidation(IntegranteProyecto, "proyecto_id", record.id);
     });
+    */
     Inscripcion.beforeDestroy(async (record, options) => {
         functions.onDeleteRestrictValidation(IntegranteProyecto, "inscripcion_id", record.id);
     });
