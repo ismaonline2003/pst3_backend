@@ -87,6 +87,39 @@ const createIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
     return objReturn;
 }
 
+const deleteIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
+    let objReturn = {status: 'success', msg: '', data: []};
+    for(let i = 0; i < integrantesData.length; i++) {
+        let integrante = integrantesData[i];
+        let integranteSearch = await db.sequelize.query(`
+              SELECT 
+                ip.id AS id
+              FROM integrante_proyecto AS ip
+              INNER JOIN inscripcion AS i ON i.id = ip.inscripcion_id
+              INNER JOIN estudiante AS e ON e.id = i.estudiante_id
+              WHERE ip.proyecto_id = ${proyectoId}
+              AND i.seccion_id = ${seccionId}
+              AND ip.id = ${integrante.id}
+              AND ip.deleted_at IS NULL
+              AND i.deleted_at IS NULL
+              AND e.deleted_at IS NULL
+              LIMIT 1
+        `);
+
+        if(integranteSearch.length > 0) {
+            await IntegranteProyecto.destroy({where: { id: integranteSearch[0][0]['id'] }, individualHooks: true, transaction: t})
+            .then(integranteDeleteRes => {
+              objReturn.data.push(integranteSearch[0][0]['id']);
+            })
+            .catch(async (err) => {
+                objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+                return objReturn;
+            });  
+        }
+    }
+    return objReturn;
+}
+
 const getFileName = (file) => {
   let filename = "";
   let type = "";
@@ -150,7 +183,51 @@ const createProjectFiles = async (projectId, fileList, files, type, transaction)
     }
     return objReturn;
 }
-  
+
+const updateProjectFiles = async (projectId, fileList, type, transaction) => {
+  let objReturn = {status: 'success', msg: '', data: []};
+    for(let i = 0; i < fileList.length; i++) {
+        let item = fileList[i];
+        let fileData = {};
+        if(type == 'IMG') {
+            fileData = {nombre: item.nombre, descripcion: item.descripcion}
+        }
+        if(type == 'DOC') {
+          fileData = {nombre: item.nombre}
+        }
+        await ProyectoArchivo.update(fileData, {where: {id: item.id}, transaction: transaction})
+        .then((proyectoArchivoRes) => {
+            objReturn.data.push(item.id);
+        })
+        .catch((err) => {
+            objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+            return objReturn;
+        })
+    }
+    return objReturn;
+}
+
+const deleteProjectFiles = async (projectId, fileList, type, transaction) => {
+  let objReturn = {status: 'success', msg: '', data: []};
+    for(let i = 0; i < fileList.length; i++) {
+        let item = fileList[i];
+        let fileSearch = await db.sequelize.query(`
+              SELECT id FROM proyecto_archivo WHERE id = ${item.id} AND id_proyecto = ${projectId} AND tipo = '${type}' AND deleted_at IS NULL LIMIT 1
+        `);
+        if(fileSearch.length > 0) {
+            await ProyectoArchivo.destroy({where: { id: fileSearch[0][0]['id'] }, individualHooks: true, transaction: transaction})
+            .then(proyectoArchivoDeleteRes => {
+              objReturn.data.push(fileSearch[0][0]['id']);
+            })
+            .catch(async (err) => {
+                objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+                return objReturn;
+            });  
+        }
+    }
+    return objReturn;
+}
+
 
 exports.create = async (req, res) => {
     const t = await db.sequelize.transaction();
@@ -269,20 +346,81 @@ exports.findOne = (req, res) => {
 };
 
 exports.update = async (req, res) => {
-    const id = req.params.id;
-    let bodyData = req.body;
-    let validations = recordValidations(bodyData);
-    const errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
+    const t = await db.sequelize.transaction();
+    const bodyData = JSON.parse(req.body.data);
+    const updateData = {
+      nombre: bodyData.nombre,
+      descripcion: bodyData.descripcion,
+      id_seccion: bodyData.id_seccion
+    }
+    const validations= recordValidations(bodyData);
+    let errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
+
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
 
-    Proyecto.update(bodyData, {where: {id: id}})
-    .then(recordRes => {
-      res.send({message: "El registro fue actualizado satisfactoriamente!!"});
-    }).catch(err => {
-      res.status(500).send({message: errorMessage});
-    });
+    Proyecto.update(updateData, {where: {id: bodyData.id}, transaction: t})
+    .then(async (proyectoRes) => {
+        //integrantes
+        const integrantesCreate = await createIntegrantes(bodyData.id, bodyData.id_seccion, bodyData.addedIntegrantes, t);
+        if(integrantesCreate.status != 'success') {
+          errorMessage = integrantesCreate.msg;
+          throw new Error(errorMessage);
+        }
+
+        const integrantesDelete = await deleteIntegrantes(bodyData.id, bodyData.id_seccion, bodyData.deletedIntegrantes, t);
+        if(integrantesDelete.status != 'success') {
+          errorMessage = integrantesDelete.msg;
+          throw new Error(errorMessage);
+        }
+
+        //imgs
+        const imgsCreate = await createProjectFiles(bodyData.id, bodyData.addedImgs, req.files, 'IMG', t);
+        if(imgsCreate.status != 'success') {
+          errorMessage = imgsCreate.msg;
+          throw new Error(errorMessage);
+        }
+
+        const imgsUpdate = await updateProjectFiles(bodyData.id, bodyData.imgsUpdated, 'IMG', t);
+        if(imgsUpdate.status != 'success') {
+          errorMessage = imgsUpdate.msg;
+          throw new Error(errorMessage);
+        }
+
+        const imgsDelete = await deleteProjectFiles(bodyData.id, bodyData.deletedImgs, 'IMG', t);
+        if(imgsDelete.status != 'success') {
+          errorMessage = imgsDelete.msg;
+          throw new Error(errorMessage);
+        }
+
+        //docs
+        const docsCreate = await createProjectFiles(bodyData.id, bodyData.addedDocs, req.files, 'DOC', t);
+        if(docsCreate.status != 'success') {
+          errorMessage = docsCreate.msg;
+          throw new Error(errorMessage);
+        }
+
+        const docsUpdate = await updateProjectFiles(bodyData.id, bodyData.docsUpdated, 'DOC', t);
+        if(docsUpdate.status != 'success') {
+          errorMessage = docsUpdate.msg;
+          throw new Error(errorMessage);
+        }
+
+        const docsDelete = await deleteProjectFiles(bodyData.id, bodyData.deletedDocs, 'DOC', t);
+        if(docsDelete.status != 'success') {
+          errorMessage = docsDelete.msg;
+          throw new Error(errorMessage);
+        }
+
+        await t.commit();
+        const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}});
+        res.status(200).send(proyectoSearch.dataValues);
+
+      }).catch(async (err) => {
+        await t.rollback();
+        res.status(500).send({message: errorMessage});
+      });
 };
 
 exports.delete = (req, res) => {

@@ -11,7 +11,7 @@ module.exports = app => {
   
     router.get("/:id", proyecto.findOne);
   
-    router.put("/:id", upload.single('foto_proyecto'), proyecto.update);
+    router.put("/:id", upload.array('files', 71), proyecto.update);
   
     router.delete("/:id", proyecto.delete);
   
