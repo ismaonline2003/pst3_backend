@@ -28,7 +28,6 @@ module.exports = (sequelize, Sequelize, Proyecto, Inscripcion) => {
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
-      paranoid: true,
       timestamps: true
     });
     Proyecto.belongsToMany(Inscripcion, { through: IntegranteProyecto, foreignKey: "proyecto_id", onDelete: 'cascade'});

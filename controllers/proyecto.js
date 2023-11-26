@@ -9,8 +9,63 @@ const Seccion = db.seccion;
 const CarreraUniversitaria = db.carrera_universitaria;
 const Op = db.Sequelize.Op;
 
-const recordValidations = (data) =>  {
+const generalValidations = async (data, integrantesAdded) =>  {
   let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
+  if(data.nombre.trim() == '') {
+    objReturn = {'status': 'error', 'data': {}, 'msg': 'Debe escribir un nombre válido para el proyecto'};
+    return objReturn;
+  }
+  if(data.descripcion.trim() == '') {
+    objReturn = {'status': 'error', 'data': {}, 'msg': 'Debe escribir una descripción válida para el proyecto'};
+    return objReturn;
+  }
+  if(isNaN(data.id_seccion)) {
+    objReturn = {'status': 'error', 'data': {}, 'msg': 'Debe seleccionar una sección'};
+    return objReturn;
+  }
+  let integrantesIds = [];
+  for(let i = 0; i < integrantesAdded.length; i++) {
+    let integrante = integrantesAdded[i];
+    if(integrantesIds.includes(integrante.id)) {
+      objReturn = {'status': 'error', 'data': {}, 'msg': 'No puede asociar al mismo estudiante dos veces.'};
+      return objReturn;
+    }
+    integrantesIds.push(integrante.id);
+    let inscripcionSearch = await db.sequelize.query(`
+      SELECT 
+        i.id AS id
+      FROM inscripcion AS i
+      INNER JOIN estudiante AS e ON e.id = i.estudiante_id
+      WHERE i.estudiante_id = ${integrante.id}
+      AND i.seccion_id = ${data.id_seccion}
+      AND i.deleted_at IS NULL
+      AND e.deleted_at IS NULL
+      LIMIT 1
+    `);
+    if(inscripcionSearch.length == 0) {
+      objReturn = {'status': 'error', 'data': {}, 'msg': 'Todos los estudiantes deben estar inscritos a la sección seleccionada.'};
+      return objReturn;
+    }
+  }
+  return objReturn;
+}
+
+
+const recordCreateValidations = async (data) =>  {
+  let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
+  let general_validations = await generalValidations(data, data.integrantes);
+  if(general_validations.status != 'success') {
+    return general_validations;
+  }
+  return objReturn;
+}
+
+const recordUpdateValidations = async (data) => {
+  let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
+  let general_validations = await generalValidations(data, data.addedIntegrantes);
+  if(general_validations.status != 'success') {
+    return general_validations;
+  }
   return objReturn;
 }
 
@@ -46,7 +101,6 @@ const createIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
             WHERE ip.proyecto_id = ${proyectoId}
             AND i.seccion_id = ${seccionId}
             AND i.estudiante_id = ${integrante.id}
-            AND ip.deleted_at IS NULL
             AND i.deleted_at IS NULL
             AND e.deleted_at IS NULL
             LIMIT 1
@@ -66,7 +120,7 @@ const createIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
             `);
 
             if(query2[0].length > 0) {
-                let integranteData = {proyecto_id: proyectoId, inscripcion_id: query2[0][0]['id']}
+                let integranteData = {proyecto_id: parseInt(proyectoId), inscripcion_id: query2[0][0]['id']}
                 await IntegranteProyecto.create(integranteData, {transaction: t})
                 .then(integranteRes => {
                     integranteData.record_id = integranteRes.id;
@@ -100,7 +154,6 @@ const deleteIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
               WHERE ip.proyecto_id = ${proyectoId}
               AND i.seccion_id = ${seccionId}
               AND ip.id = ${integrante.id}
-              AND ip.deleted_at IS NULL
               AND i.deleted_at IS NULL
               AND e.deleted_at IS NULL
               LIMIT 1
@@ -212,7 +265,7 @@ const deleteProjectFiles = async (projectId, fileList, type, transaction) => {
     for(let i = 0; i < fileList.length; i++) {
         let item = fileList[i];
         let fileSearch = await db.sequelize.query(`
-              SELECT id FROM proyecto_archivo WHERE id = ${item.id} AND id_proyecto = ${projectId} AND tipo = '${type}' AND deleted_at IS NULL LIMIT 1
+              SELECT id FROM proyecto_archivo WHERE id = ${item.id} AND id_proyecto = ${projectId} AND tipo = '${type}' LIMIT 1
         `);
         if(fileSearch.length > 0) {
             await ProyectoArchivo.destroy({where: { id: fileSearch[0][0]['id'] }, individualHooks: true, transaction: transaction})
@@ -232,7 +285,7 @@ const deleteProjectFiles = async (projectId, fileList, type, transaction) => {
 exports.create = async (req, res) => {
     const t = await db.sequelize.transaction();
     const bodyData = JSON.parse(req.body.data);
-    const validations= recordValidations(bodyData);
+    const validations= await recordCreateValidations(bodyData);
     let errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
 
     if(validations.status != 'success') {
@@ -353,11 +406,12 @@ exports.update = async (req, res) => {
       descripcion: bodyData.descripcion,
       id_seccion: bodyData.id_seccion
     }
-    const validations= recordValidations(bodyData);
+    const validations= await recordUpdateValidations(bodyData);
     let errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
 
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
+      return;
     }
 
     Proyecto.update(updateData, {where: {id: bodyData.id}, transaction: t})
@@ -415,9 +469,10 @@ exports.update = async (req, res) => {
 
         await t.commit();
         const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}});
-        res.status(200).send(proyectoSearch.dataValues);
+        res.status(200).send({...proyectoSearch.dataValues, message: "El proyecto fue actualizado exitosamente!!"});
 
       }).catch(async (err) => {
+        console.log(err);
         await t.rollback();
         res.status(500).send({message: errorMessage});
       });
@@ -425,8 +480,8 @@ exports.update = async (req, res) => {
 
 const deleteRelatedRecords = async(projectId, transaction) => {
   let objReturn = {status: 'success', msg: '', data: {integrantes: [], files: []}};
-  let integrantesQuery = await db.sequelize.query(`SELECT id FROM integrante_proyecto WHERE proyecto_id = ${projectId} AND deleted_at IS NULL`);
-  let proyectoArchivoQuery = await db.sequelize.query(`SELECT id FROM proyecto_archivo WHERE id_proyecto = ${projectId} AND deleted_at IS NULL`);
+  let integrantesQuery = await db.sequelize.query(`SELECT id FROM integrante_proyecto WHERE proyecto_id = ${projectId}`);
+  let proyectoArchivoQuery = await db.sequelize.query(`SELECT id FROM proyecto_archivo WHERE id_proyecto = ${projectId}`);
   if(integrantesQuery.length > 0) {
     for(let i = 0; i < integrantesQuery[0].length; i++) {
       const record = integrantesQuery[0][i];
