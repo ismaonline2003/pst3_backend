@@ -69,7 +69,7 @@ exports.findAll = async (req, res) => {
 exports.findOne = (req, res) => {
     const id = req.params.id;
 
-    CategoriaNoticia.findOne({include: { all: true, nested: true }, where: {id: id}, paranoid: true})
+    CategoriaNoticia.findOne({where: {id: id}, paranoid: true})
     .then(data => {
       if (data) {
         res.send(data);
@@ -92,9 +92,12 @@ exports.update = async (req, res) => {
       res.status(400).send({message: validations.msg});
     }
 
-    CategoriaNoticia.update(bodyData, {where: {id: id}})
+    CategoriaNoticia.update({
+      nombre: bodyData.nombre,
+      descripcion: bodyData.descripcion
+    }, {where: {id: id}})
     .then(recordRes => {
-      res.send({message: "El registro fue actualizado satisfactoriamente!!"});
+      res.send({message: "El registro fue actualizado satisfactoriamente!!", data: bodyData});
     }).catch(err => {
       res.status(500).send({message: errorMessage});
     });

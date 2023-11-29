@@ -8,7 +8,7 @@ module.exports = (sequelize, Sequelize) => {
       },
       descripcion: {
         type: Sequelize.STRING
-      }
+      }//
     }, 
     {
       tableName: 'categoria_noticia',
@@ -20,14 +20,16 @@ module.exports = (sequelize, Sequelize) => {
     });
     CategoriaNoticia.hasMany(CategoriaNoticia, {
         foreignKey: "parent_id",
-        onDelete: 'RESTRICT'
+        onDelete: 'RESTRICT',
+        as: 'Parent'
     });
     CategoriaNoticia.belongsTo(CategoriaNoticia, {
       foreignKey: "parent_id",
-      onDelete: 'RESTRICT'
+      onDelete: 'RESTRICT',
+      as: 'Children'
     });
-    CategoriaNoticia.beforeDestroy(async (record, options) => {
-        functions.onDeleteRestrictValidation(CategoriaNoticia, "parent_id", record.id);
-    });
+    //CategoriaNoticia.beforeDestroy(async (record, options) => {
+    //    functions.onDeleteRestrictValidation(CategoriaNoticia, "parent_id", record.id);
+    //});
     return CategoriaNoticia;
 };
