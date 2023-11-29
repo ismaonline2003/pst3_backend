@@ -23,6 +23,9 @@ module.exports = (sequelize, Sequelize, User, Categoria) => {
       },
       is_published: {
         type: Sequelize.BOOLEAN
+      },
+      wordpress_id: {
+        type: Sequelize.STRING
       }
     }, 
     {

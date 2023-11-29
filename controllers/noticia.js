@@ -60,15 +60,22 @@ const createFileInDirectory = (fileIndex, files) => {
   return objReturn;
 }
 
-const prepareContent = (data, files) => {
+const prepareContent = (data={}, files=[], mode="create") => {
   let objReturn = {status: 'success', msg: '', content: data.contenido, fileList: [], miniaturaPath: ''};
   data.addedImgs.map((item) => {
     let fileAddresses = createFileInDirectory(item.index, files);
     objReturn.content = objReturn.content.replace(item.url, fileAddresses.url);
     objReturn.fileList.push(fileAddresses.path);
   });
-  let miniaturaFileAddresses = createFileInDirectory(data.miniaturaFileIndex, files);
-  objReturn.miniaturaPath = miniaturaFileAddresses.path;
+  let miniaturaFileAddresses = false;
+  if(mode == 'create') {
+    miniaturaFileAddresses = createFileInDirectory(data.miniaturaFileIndex, files);
+    objReturn.miniaturaPath = miniaturaFileAddresses.path;
+  } 
+  if(mode == 'update' && data.miniaturaUpdated) {
+    miniaturaFileAddresses = createFileInDirectory(data.miniaturaFileIndex, files);
+    objReturn.miniaturaPath = miniaturaFileAddresses.path;
+  }
   return objReturn;
 }
 
@@ -213,18 +220,50 @@ exports.findOne = (req, res) => {
 };
 
 exports.update = async (req, res) => {
-    const id = req.params.id;
-    let bodyData = req.body;
-    let validations = recordValidations(bodyData);
-    const errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
+    const t = await db.sequelize.transaction();
+    const bodyData = JSON.parse(req.body.data);
+    const validations= recordValidations(bodyData);
+    let errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
+
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
 
-    Seccion.update(bodyData, {where: {id: id}})
-    .then(seccionRes => {
-      res.send({message: "El registro fue actualizado satisfactoriamente!!"});
-    }).catch(err => {
+    let contentPrepared = prepareContent(bodyData, req.files, 'update');
+    
+    let updateData = {
+        nombre: bodyData.nombre,
+        descripcion: bodyData.descripcion,
+        contenido: contentPrepared.content,
+        categ_id: bodyData.categId,
+        user_id: bodyData.userId
+    }
+    if(bodyData.post) {
+      updateData.is_published = true;
+      updateData.fecha_publicacion = new Date();
+    }
+    if(bodyData.miniaturaUpdated) {
+      updateData.miniatura = contentPrepared.miniaturaPath;
+    }
+
+    Noticia.update(updateData, {where: {id: bodyData.id}})
+    .then(async (recordRes) => {
+      let createImgs = await createNoticiaImgsRecords(bodyData.id, contentPrepared.fileList, t);
+      if(createImgs.status != 'success') {
+        errorMessage = createImgs.msg;
+        throw new Error(errorMessage);
+      }
+      await t.commit();
+      const noticiaSearch = await Noticia.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}})
+      if(bodyData.post && !noticiaSearch.wordpress_id) {
+        //publicar
+      }
+      if(!bodyData.post && noticiaSearch.wordpress_id) {
+        //ocultar
+      }
+      res.send({message: "La noticia fue actualizada satisfactoriamente!!", data: noticiaSearch});
+    }).catch(async(err) => {
+      await t.rollback();
       res.status(500).send({message: errorMessage});
     });
 };
