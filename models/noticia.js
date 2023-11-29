@@ -13,10 +13,16 @@ module.exports = (sequelize, Sequelize, User, Categoria) => {
         type: Sequelize.STRING
       },
       contenido: {
-        type: Sequelize.STRING
+        type: Sequelize.TEXT
       },
       miniatura: {
-        type: Sequelize.BLOB
+        type: Sequelize.STRING
+      },
+      fecha_publicacion: {
+        type: Sequelize.DATE
+      },
+      is_published: {
+        type: Sequelize.BOOLEAN
       }
     }, 
     {

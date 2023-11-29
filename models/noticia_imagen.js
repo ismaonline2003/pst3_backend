@@ -3,11 +3,8 @@ module.exports = (sequelize, Sequelize, Noticia) => {
         noticia_id: {
             type: Sequelize.INTEGER
         },
-        titulo: {
-            type: Sequelize.STRING
-        },
         file: {
-            type: Sequelize.BLOB
+            type: Sequelize.STRING
         }
     }, 
     {

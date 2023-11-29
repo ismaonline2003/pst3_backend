@@ -1,4 +1,5 @@
 const fs = require('fs');
+const wordpressConfig = require('../config/wordpress_config')
 const db = require("../models");
 const functions = require('../routes/functions');
 const Noticia = db.noticia;
@@ -7,48 +8,118 @@ const Op = db.Sequelize.Op;
 
 const recordValidations = (data) =>  {
   let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
-  if(data.nombre.trim() == "") {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  if(data.nombre == "") {
       objReturn = {'status': 'failed', 'data': {}, 'msg': 'Se debe definir un nombre para la noticia.'};
+      return objReturn;
+  }
+  //if(!newMiniaturaObj) {
+  //    objReturn = {'status': 'failed', 'data': {}, 'msg': 'Debe cargar una miniatura para la noticia'};
+  //    return objReturn;
+  //}
+  if(data.addedImgs.length > 70) {
+      objReturn = {'status': 'failed', 'data': {}, 'msg': 'La cantidad máxima de imagenes que se pueden cargar es de 70.'};
+      return objReturn;
+  }
+  if(!data.categId) {
+      objReturn = {'status': 'failed', 'data': {}, 'msg': 'Debe seleccionar una categoria para la noticia'};
       return objReturn;
   }
   return objReturn;
 }
-  
+
+const getFileName = (file) => {
+  let filename = "";
+  let type = "";
+  filename = `${file.filename}`;
+  if(file.mimetype == 'image/jpeg') {
+    type = "jpeg";
+  }
+  if(file.mimetype == 'image/jpg') {
+    type = "jpg";
+  }
+  if(file.mimetype == 'image/png') {
+    type = "png";
+  }
+  filename += `.${type}`;
+  return filename;
+}
+
+const createFileInDirectory = (fileIndex, files) => {
+  let objReturn = {path: '', url: ''};
+  let file = files[fileIndex];
+  const fileRead = fs.readFileSync(file.path);
+  const filename = getFileName(file);
+  const filePath = `api/files/getFile/${filename}`;
+  const fileUrl = `${wordpressConfig.external_backend_url}/api/files/getFile/${filename}`
+  fs.writeFileSync(`src/fileUploads/${filename}`, fileRead);
+  fs.unlinkSync(file.path);
+  objReturn.path = filePath;
+  objReturn.url = fileUrl;
+  return objReturn;
+}
+
+const prepareContent = (data, files) => {
+  let objReturn = {status: 'success', msg: '', content: data.contenido, fileList: [], miniaturaPath: ''};
+  data.addedImgs.map((item) => {
+    let fileAddresses = createFileInDirectory(item.index, files);
+    objReturn.content = objReturn.content.replace(item.url, fileAddresses.url);
+    objReturn.fileList.push(fileAddresses.path);
+  });
+  let miniaturaFileAddresses = createFileInDirectory(data.miniaturaFileIndex, files);
+  objReturn.miniaturaPath = miniaturaFileAddresses.path;
+  return objReturn;
+}
+
+const createNoticiaImgsRecords = async (noticiaId, fileList, t) => {
+  let objReturn = {status: 'success', msg: '', data: []};
+  for(let i = 0; i < fileList.length; i++) {
+    await NoticiaImagen.create({noticia_id: noticiaId, file: fileList[i]}, {transaction:t})
+    .then((res) => {
+        objReturn.data.push(res.id)
+    })
+    .catch((err) => {
+        objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
+        return objReturn;
+    })
+  }
+  return objReturn;
+}
 
 exports.create = async (req, res) => {
-    const bodyData = req.body;
+    const t = await db.sequelize.transaction();
+    const bodyData = JSON.parse(req.body.data);
     const validations= recordValidations(bodyData);
-    const errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
+    let errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
 
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
 
-    const seccionSearch = await Seccion.findAll({where: {
-          nombre: bodyData.nombre, 
-          pnf_id: bodyData.pnf_id,  
-          year: bodyData.year,
-          trayecto: bodyData.trayecto,
-          turno: bodyData.turno
-    }});
-
-    if(seccionSearch.length > 0) {
-      res.status(400).send({
-          message: `La sección ${bodyData.nombre} del PNF ${bodyData.pnf_data.nombre_pnf} del trayecto ${bodyData.trayecto} en el turno ${getTurnoName(parseInt(bodyData.turno))} en el año ${bodyData.year} ya esta previamente creada.`
-      });
-      return
+    let contentPrepared = prepareContent(bodyData, req.files);
+    
+    let createData = {
+        nombre: bodyData.nombre,
+        descripcion: bodyData.descripcion,
+        contenido: contentPrepared.content,
+        categ_id: bodyData.categId,
+        user_id: bodyData.userId,
+        miniatura: contentPrepared.miniaturaPath
     }
 
-    Seccion.create({
-      pnf_id: bodyData.pnf_id,
-      year: bodyData.year,
-      trayecto: bodyData.trayecto,
-      nombre: bodyData.nombre,
-      turno: bodyData.turno
-    })
-    .then(seccionRes => {
-      res.status(200).send(seccionRes.dataValues);
-    }).catch(err => {
+    Noticia.create(createData, {transaction: t})
+    .then(async (recordRes) => {
+      let createImgs = await createNoticiaImgsRecords(recordRes.id, contentPrepared.fileList, t);
+      if(createImgs.status != 'success') {
+        errorMessage = createImgs.msg;
+        throw new Error(errorMessage);
+      }
+      await t.commit();
+      const noticiaSearch = await Noticia.findOne({include: { all: true, nested: true }, where: {id: recordRes.id}})
+      res.status(200).send(noticiaSearch.dataValues);
+    }).catch(async (err) => {
+      await t.rollback();
       res.status(500).send({message: errorMessage});
     });
 };
@@ -126,7 +197,7 @@ exports.findAll = async (req, res) => {
 
 exports.findOne = (req, res) => {
   const id = req.params.id;
-  Seccion.findOne({include: [{model: db.carrera_universitaria}], where: {id: id}, paranoid: true})
+  Noticia.findOne({include: { all: true, nested: true }, where: {id: id}, paranoid: true})
     .then(data => {
       if (data) {
         res.send(data);
