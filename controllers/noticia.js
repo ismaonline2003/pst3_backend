@@ -270,7 +270,7 @@ exports.update = async (req, res) => {
 
 exports.delete = (req, res) => {
     const id = req.params.id;
-    Seccion.destroy({
+    Noticia.destroy({
       where: { id: id },
       individualHooks: true
     })

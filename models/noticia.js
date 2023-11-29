@@ -56,6 +56,12 @@ module.exports = (sequelize, Sequelize, User, Categoria) => {
     });
 
     //hooks validations
+    Noticia.beforeDestroy(async (record, options) => {
+      if(record.dataValues.is_published) {
+        throw new Error("No se puede eliminar esta noticia hasta que este oculta.")
+      }
+    })
+
     User.beforeDestroy(async (record, options) => {
         functions.onDeleteRestrictValidation(Noticia, "user_id", record.id);
     });
