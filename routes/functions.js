@@ -132,3 +132,22 @@ exports.onDeleteRestrictValidation = async (model, foreignKey, id) => {
       throw ('No se puede eliminar este registro');
     }
 }
+
+exports.searchUserByPersonName = async (db, value) => {
+    let ids_list = [];
+    let recordsSearch = await db.sequelize.query(`
+        SELECT 
+            u.id AS user_id 
+        FROM users AS u 
+        INNER JOIN person AS p ON p.id = u.person_id
+        WHERE CONCAT(p.name,' ', p.lastname) LIKE '%${value}%' 
+        AND u.deleted_at IS NOT NULL 
+        AND p.deleted_at IS NOT NULL
+    `);
+    if(recordsSearch.length > 0) {
+        for(let i = 0; i < recordsSearch[0].length; i++) {
+            ids_list.push(recordsSearch[0][i].user_id);
+        }
+    }
+    return ids_list;
+}

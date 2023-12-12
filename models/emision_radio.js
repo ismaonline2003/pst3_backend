@@ -16,9 +16,6 @@ module.exports = (sequelize, Sequelize, User) => {
         duracion: {
             type: Sequelize.FLOAT
         },
-        duracion: {
-            type: Sequelize.FLOAT
-        },
         fecha_inicio: {
             type: Sequelize.DATE
         },
@@ -26,7 +23,7 @@ module.exports = (sequelize, Sequelize, User) => {
             type: Sequelize.DATE
         },
         file: {
-            type: Sequelize.BLOB
+            type: Sequelize.STRING
         }
     }, 
     {

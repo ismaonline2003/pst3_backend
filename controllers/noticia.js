@@ -144,25 +144,6 @@ const searchCategIds = async (value) => {
     return ids_list;
 }
 
-const searchRedactoresIds = async (value) => {
-    let ids_list = [];
-    let recordsSearch = await db.sequelize.query(`
-        SELECT 
-            u.id AS user_id 
-        FROM users AS u 
-        INNER JOIN person AS p ON p.id = u.person_id
-        WHERE CONCAT(p.name,' ', p.lastname) LIKE '%${value}%' 
-        AND u.updated_at IS NOT NULL 
-        AND p.updated_at IS NOT NULL
-    `);
-    if(recordsSearch.length > 0) {
-        for(let i = 0; i < recordsSearch[0].length; i++) {
-            ids_list.push(recordsSearch[0][i].user_id);
-        }
-    }
-    return ids_list;
-}
-
 exports.findAll = async (req, res) => {
     const parameter = req.query.parameter;
     const value = req.query.value;
@@ -184,7 +165,7 @@ exports.findAll = async (req, res) => {
             condition = {categ_id: {[Op.in]: categ_ids}};
         }
         if(parameter == 'redactor') {
-            const user_ids = await searchRedactoresIds(value);
+            const user_ids = await functions.searchUserByPersonName(db, value);
             condition = {user_id: {[Op.in]: user_ids}};
         }
     }

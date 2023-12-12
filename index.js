@@ -88,6 +88,7 @@ require("./routes/carrera_universitaria.js")(app);
 require("./routes/seccion.js")(app);
 require("./routes/proyecto.js")(app);
 require("./routes/noticia.js")(app);
+require("./routes/grabacion.js")(app);
 require("./routes/categoria_noticia.js")(app);
 require("./routes/files.js")(app);
 
