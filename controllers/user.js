@@ -1,6 +1,7 @@
 const db = require("../models");
 const User = db.user;
 const Op = db.Sequelize.Op;
+const functions = require('../routes/functions')
 //Insert new User
 exports.create = (req, res) => {
     const bcrypt = require("bcrypt");
@@ -35,44 +36,62 @@ exports.create = (req, res) => {
 };
 
 // Retrieve all users
-exports.findAll = (req, res) => {
+exports.findAll = async (req, res) => {
+  const parameter = req.query.parameter;
+  const value = req.query.value;
+  const limitParameter = req.query.limit;
+  let limit = 25;
+  if(limitParameter && !isNaN(limitParameter)) {
+      limit = parseInt(limitParameter);
+  }
+  var condition = {};
+  if(parameter) {
+      if(parameter == 'ref') {
+          condition = {id: {[Op.eq]: value}};
+      }
+      if(parameter == 'login') {
+          condition = {login: {[Op.like]: `%${value}%`}};
+      }
+      if(parameter == 'verificado') {
+          let verificado = false;
+          condition = {verifiedDate: {[Op.is]: null}};
+          if(value == "1") {
+            condition = {verifiedDate: {[Op.not]: null}};
+          }
+      }
+      if(parameter == 'nombre') {
+        let userIds = await functions.searchUserByPersonName(db, value);
+        condition = {id: {[Op.in]: userIds}};
+      }
+  }
 
-  const login = req.query.login;
-  var condition = login ? { login: { [Op.like]: `%${login}%` } } : null;
+  let searchConfig = {where: condition, include: [{model: db.person}], limit:limit};
 
-  User.findAll({ 
-      include: [{model: db.person}],
-      where: condition 
-    })
-    .then(data => {
-      res.send(data);
-    })
-    .catch(err => {
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while retrieving data."
-      });
-    });
-  
+  User.findAll(searchConfig)
+  .then((data) => {
+      res.send(data)
+  })
+  .catch(err => {
+      res.status(500).send({message: "Ocurrió un error durante la busqueda de los usuarios"});
+  });
 };
 
 //search a single user with an id
 exports.findOne = (req, res) => {
   const id = req.params.id;
-
-  User.findByPk(id)
+  User.findByPk(id, {include: [{model: db.person}]})
     .then(data => {
       if (data) {
         res.send(data);
       } else {
         res.status(404).send({
-          message: `Cannot find User with id=${id}.`
+          message: `No se pudo encontrar a el usuario con la referencia ${id}.`
         });
       }
     })
     .catch(err => {
       res.status(500).send({
-        message: "Error retrieving User with id=" + id
+        message: "Ocurrió un error inesperado durante la busqueda del usuario"
       });
     });
 };

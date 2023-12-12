@@ -69,6 +69,23 @@ exports.findOne = (req, res) => {
     });
 };
 
+exports.findWithoutUser = async (req, res) => {
+  const value = req.params.value;
+  let recordsSearch = await db.sequelize.query(`
+      SELECT * FROM person 
+      WHERE CONCAT(name,' ',lastname) LIKE '%${value}%' 
+      AND id NOT IN (
+        SELECT person.id AS id 
+        FROM person 
+        INNER JOIN users ON users.person_id = person.id
+        WHERE person.deleted_at IS NULL
+        AND users.deleted_at IS NULL
+      ) 
+      AND deleted_at IS NULL
+  `);
+  res.status(200).send(recordsSearch[0]);
+}
+
 // Update a student details by the id in the request
 exports.update = (req, res) => {
   const id = req.params.id;

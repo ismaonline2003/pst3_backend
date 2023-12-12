@@ -8,10 +8,13 @@ module.exports = app => {
     router.post("/", person.create);
   
     // view all person
-    router.get("/", person.findAll);
-  
+    router.get("/person", person.findAll);
+
     // view an person
-    router.get("/:id", person.findOne);
+    router.get("/personWithoutUser/:value?", person.findWithoutUser);
+
+    // view an person
+    router.get("/person/:id", person.findOne);
   
     // update an person
     router.put("/:id", person.update);

@@ -141,8 +141,8 @@ exports.searchUserByPersonName = async (db, value) => {
         FROM users AS u 
         INNER JOIN person AS p ON p.id = u.person_id
         WHERE CONCAT(p.name,' ', p.lastname) LIKE '%${value}%' 
-        AND u.deleted_at IS NOT NULL 
-        AND p.deleted_at IS NOT NULL
+        AND u.deleted_at IS NULL 
+        AND p.deleted_at IS NULL
     `);
     if(recordsSearch.length > 0) {
         for(let i = 0; i < recordsSearch[0].length; i++) {
