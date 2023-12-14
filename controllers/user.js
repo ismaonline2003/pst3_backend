@@ -2,6 +2,7 @@ const db = require("../models");
 const User = db.user;
 const Op = db.Sequelize.Op;
 const functions = require('../routes/functions')
+
 //Insert new User
 exports.create = (req, res) => {
     const bcrypt = require("bcrypt");
