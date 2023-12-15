@@ -3,35 +3,159 @@ const User = db.user;
 const Op = db.Sequelize.Op;
 const functions = require('../routes/functions')
 
+const userCreateValidations = async (data) => {
+  let objReturn = {status: 'success', message: '', data: {}};
+  const emailRegExp =  /^\w+([.-_+]?\w+)*@\w+([.-]?\w+)*(\.\w{2,10})+$/g;
+  const specialCharactersAllowed = /[!@#$%&*?]/;
+  const specialCharsNotAllowed = /[^()_+\-=\[\]{};':"\\|,.<>\/~]/g;
+  const userSearch = await User.findAll({where: {login: data.login}});
+  
+  if(userSearch.length > 0) {
+    objReturn = {status: 'already_exists', message: `El email "${data.login}" ya está en uso.`, data: {}};
+    return objReturn;
+  }
+
+  if(data.login.trim() == "") {
+      objReturn = {'status': 'failed', 'data': {}, 'msg': 'Se debe definir un email valido para el usuario.'};
+      return objReturn;
+  }
+  
+  if(!emailRegExp.test(data.login)) {
+      objReturn = {status: 'failed', data: {}, msg: 'El correo electrónico especificado es inválido.'};
+      return objReturn;
+  }
+  if(!data.id_persona) {
+      objReturn = {status: 'failed', data: {}, msg: 'Debe seleccionar una persona para el usuario.'};
+      return objReturn;
+  }
+  if(data.password.length < 12) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener un mínimo 12 caracteres.'};
+      return objReturn;
+  }
+
+  if(/\s/.test(data.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña no puede tener espacios en blanco.'};
+      return objReturn;
+  }
+
+  if(!/[A-Z]/.test(data.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener al menos una letra mayúscula.'};
+      return objReturn;
+  }
+
+  if(!/[a-z]/.test(data.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener letras minusculas.'};
+      return objReturn;
+  }
+
+  if(!/\d/.test(data.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener al menos un caracter numérico.'};
+      return objReturn;
+  }
+
+  if(!specialCharactersAllowed.test(data.password)) {
+      objReturn = {status: 'failed', data: {}, msg: `La contraseña debe contener al menos uno de los siguientes caracteres especiales: !@#$%&*?`};
+      return objReturn;
+  }
+  
+  if(data.password != data.password_repeat) {
+      objReturn = {status: 'failed', data: {}, msg: `Ambas contraseñas deben ser iguales.`};
+      return objReturn;
+  }
+  return objReturn;
+}
+
+const userUpdateValidations = async (data, id) => {
+  let objReturn = {status: 'success', message: '', data: {}};
+  const emailRegExp =  /^\w+([.-_+]?\w+)*@\w+([.-]?\w+)*(\.\w{2,10})+$/g;
+  const specialCharactersAllowed = /[!@#$%&*?]/;
+  const specialCharsNotAllowed = /[^()_+\-=\[\]{};':"\\|,.<>\/~]/g;
+  const userSearch = await User.findAll({ where: { login: {[Op.eq]: data.login}, id: {[Op.not]: id} } });
+  
+  if(userSearch.length > 0) {
+    objReturn = {status: 'already_exists', message: `El email "${data.login}" ya está en uso.`, data: {}};
+    return objReturn;
+  }
+
+  if(data.login.trim() == "") {
+      objReturn = {'status': 'failed', 'data': {}, 'msg': 'Se debe definir un email valido para el usuario.'};
+      return objReturn;
+  }
+  
+  if(!emailRegExp.test(data.login)) {
+      objReturn = {status: 'failed', data: {}, msg: 'El correo electrónico especificado es inválido.'};
+      return objReturn;
+  }
+  if(data.change_password) {
+    if(data.password.length < 12) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener un mínimo 12 caracteres.'};
+      return objReturn;
+    }
+
+    if(/\s/.test(data.password)) {
+        objReturn = {status: 'failed', data: {}, msg: 'La contraseña no puede tener espacios en blanco.'};
+        return objReturn;
+    }
+
+    if(!/[A-Z]/.test(data.password)) {
+        objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener al menos una letra mayúscula.'};
+        return objReturn;
+    }
+
+    if(!/[a-z]/.test(data.password)) {
+        objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener letras minusculas.'};
+        return objReturn;
+    }
+
+    if(!/\d/.test(data.password)) {
+        objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener al menos un caracter numérico.'};
+        return objReturn;
+    }
+
+    if(!specialCharactersAllowed.test(data.password)) {
+        objReturn = {status: 'failed', data: {}, msg: `La contraseña debe contener al menos uno de los siguientes caracteres especiales: !@#$%&*?`};
+        return objReturn;
+    }
+    
+    if(data.password != data.password_repeat) {
+        objReturn = {status: 'failed', data: {}, msg: `Ambas contraseñas deben ser iguales.`};
+        return objReturn;
+    }
+  }
+  
+  return objReturn;
+}
+
 //Insert new User
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
+    const defaultErrorMessage = "Ocurrió un error inesperado durante la creación del usuario... Vuelva a intentarlo mas tarde";
     const bcrypt = require("bcrypt");
-    let userDbPassword = req.body.password;
+    const validations = await userCreateValidations(req.body);
+    const userDbPassword = req.body.password;
+    if(validations.status != 'success') {
+      res.status(400).send({message: validations.message});
+      return;
+    }
     bcrypt.genSalt(10, (err, salt) => {
       bcrypt.hash(userDbPassword, salt, function(err, hash) {
           // Store hash in the database
           // Create an User
           const user = {
-            login: req.body.login,
+            login: req.body.login.trim(),
             password: hash,
-            person_id: req.body.person_id
+            person_id: req.body.id_persona
           };
           // Save student in the database
           User.create(user).then(data => {
-              res.send(data);
-            })
-            .catch(err => {
-              res.status(500).send({
-                message:
-                  err.message || "Error occurred while creating the User."
-              });
-            });
+            res.send(data);
+          })
+          .catch(err => {
+            res.status(500).send({message:defaultErrorMessage});
+          });
       });
     })
     if (!req.body.login) {
-        res.status(400).send({
-            message: "Content can not be empty!"
-        });
+        res.status(400).send({message: defaultErrorMessage});
         return;
     }
 };
@@ -98,33 +222,64 @@ exports.findOne = (req, res) => {
 };
 
 // Update a student details by the id in the request
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
+  const bcrypt = require("bcrypt");
   const id = req.params.id;
-
-  User.update(req.body, {
-    where: { id: id }
-  })
-    .then(num => {
+  const defaultErrorMessage = "Ocurrió un error inesperado durante la actualización del usuario... Vuelva a intentarlo mas tarde";
+  const validations = await userUpdateValidations(req.body);
+  if(validations.status != 'success') {
+    res.status(400).send({message: validations.message});
+    return;
+  }
+  const userSearch = await User.findAll({where: {id: {[Op.eq]: id} }});
+  let bodyData = {
+    login: req.body.login
+  }
+  if(bodyData.login != userSearch[0].dataValues.login) {
+    bodyData.verifiedDate = null;
+    bodyData.verifiedToken = null;
+  }
+  //cambio de contraseña
+  if(req.body.change_password) {
+    await bcrypt.genSalt(10, (err, salt) => {
+      bcrypt.hash(req.body.password, salt, (err, hash) =>{
+        bodyData.password = hash;
+        bodyData.verifiedDate = null,
+        bodyData.verifiedToken = null;
+        User.update(bodyData, {where: { id: id }})
+        .then(async num => {
+          if (num == 1) {
+            const userSearch = await User.findAll({where: {id: {[Op.eq]: id}}, include: [{model: db.person}]});
+            res.send({message: "El usuario fue actualizado satisfactoriamente!!", data: userSearch});
+          } else {
+            res.status(400).send({message: defaultErrorMessage});
+          }
+        })
+        .catch(err => {
+          res.status(500).send({message: defaultErrorMessage});
+        });
+          });
+        });
+  } else {
+    User.update(bodyData, {where: { id: id }})
+    .then(async num => {
       if (num == 1) {
-        res.send({
-          message: "Successfully Updated User."
-        });
+        const userSearch = await User.findAll({where: {id: {[Op.eq]: id}}, include: [{model: db.person}]});
+        res.send({message: "El usuario fue actualizado satisfactoriamente!!", data: userSearch});
       } else {
-        res.send({
-          message: `Can't update student with id=${id}.Something has gone wrong!`
-        });
+        res.status(400).send({message: defaultErrorMessage});
       }
     })
     .catch(err => {
-      res.status(500).send({
-        message: "Can't update User with id=" + id
-      });
+      res.status(500).send({message: defaultErrorMessage});
     });
+  }
 };
 
 // remove a User with the given id 
 exports.delete = (req, res) => {
   const id = req.params.id;
+  const defaultErrorMessage = "Ocurrió un error inesperado durante la eliminación del usuario... Vuelva a intentarlo mas tarde";
 
   User.destroy({
     where: { id: id }
@@ -132,17 +287,17 @@ exports.delete = (req, res) => {
     .then(num => {
       if (num == 1) {
         res.send({
-          message: "Successfully deleted student!"
+          message: "El usuario fue eliminado satisfactoriamente!!"
         });
       } else {
         res.send({
-          message: `Something went wrong!Can't delete User with id=${id}.`
+          message: defaultErrorMessage
         });
       }
     })
     .catch(err => {
       res.status(500).send({
-        message: "Can't delete User with id=" + id
+        message: defaultErrorMessage
       });
     });
   }
