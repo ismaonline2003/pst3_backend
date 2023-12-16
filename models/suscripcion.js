@@ -1,5 +1,5 @@
 module.exports = (sequelize, Sequelize, Usuario) => {
-    const RadioSuscriptor = sequelize.define("radio_suscriptor", {
+    const Suscripcion = sequelize.define("suscripcion", {
         user_id: {
             type: Sequelize.INTEGER
         },
@@ -8,29 +8,36 @@ module.exports = (sequelize, Sequelize, Usuario) => {
         },
         username: {
             type: Sequelize.STRING
+        },
+        tipo: {
+            type: Sequelize.ENUM,
+            values: ["radio", "portal_noticias"]
+        },
+        activa: {
+            type: Sequelize.BOOLEAN
         }
     }, 
     {
-      tableName: 'radio_suscriptor',
+      tableName: 'suscripcion',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
       paranoid: true,
       timestamps: true
     });
-    Usuario.hasMany(RadioSuscriptor,  {
+    Usuario.hasMany(Suscripcion,  {
         foreignKey: "user_id",
         onDelete: 'RESTRICT'
     });
-    RadioSuscriptor.belongsTo(Usuario, {
+    Suscripcion.belongsTo(Usuario, {
       foreignKey: "user_id",
       onDelete: 'RESTRICT'
     });
 
     //validations in hooks
     Usuario.beforeDestroy(async (record, options) => {
-        functions.onDeleteRestrictValidation(RadioSuscriptor, "user_id", record.id);
+        functions.onDeleteRestrictValidation(Suscripcion, "user_id", record.id);
     });
     
-    return RadioSuscriptor;
+    return Suscripcion;
 };

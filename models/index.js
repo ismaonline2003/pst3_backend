@@ -67,10 +67,10 @@ db.categoria_noticia = require("./categoria_noticia.js")(sequelizeInstance, Sequ
 db.noticia = require("./noticia.js")(sequelizeInstance, Sequelize, db.user, db.categoria_noticia);
 db.noticia_imagen = require("./noticia_imagen.js")(sequelizeInstance, Sequelize, db.noticia);
 db.emision_radio = require("./emision_radio.js")(sequelizeInstance, Sequelize, db.user);
-db.radio_suscriptor = require("./radio_suscriptor.js")(sequelizeInstance, Sequelize, db.user);
+db.suscripcion = require("./suscripcion.js")(sequelizeInstance, Sequelize, db.user);
 db.radio_espectador = require("./radio_espectador.js")(sequelizeInstance, Sequelize);
-db.visualizacion_emision_radio = require("./visualizacion_emision_radio.js")(sequelizeInstance, Sequelize, db.emision_radio, db.radio_suscriptor, db.radio_espectador);
-db.radio_espectador_mensaje = require("./radio_espectador_mensaje.js")(sequelizeInstance, Sequelize, db.emision_radio, db.radio_suscriptor, db.radio_espectador);
+db.visualizacion_emision_radio = require("./visualizacion_emision_radio.js")(sequelizeInstance, Sequelize, db.emision_radio, db.suscripcion, db.radio_espectador);
+db.radio_espectador_mensaje = require("./radio_espectador_mensaje.js")(sequelizeInstance, Sequelize, db.emision_radio, db.suscripcion, db.radio_espectador);
 
 
 //foreing keys
