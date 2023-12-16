@@ -11,6 +11,8 @@ module.exports = app => {
   
     // view an user
     router.get("/:id", functions.verifyToken, users.findOne);
+
+    router.get('/api/userVerification/:id', users.userVerify)
   
     // update an user
     router.put("/:id", functions.verifyToken, users.update);

@@ -2,6 +2,7 @@ const db = require("../models");
 const User = db.user;
 const Op = db.Sequelize.Op;
 const functions = require('../routes/functions')
+const nodeMailerConfig = require('../config/nodemailer_config');
 
 const userCreateValidations = async (data) => {
   let objReturn = {status: 'success', message: '', data: {}};
@@ -62,6 +63,12 @@ const userCreateValidations = async (data) => {
       objReturn = {status: 'failed', data: {}, msg: `Ambas contraseñas deben ser iguales.`};
       return objReturn;
   }
+
+  if(!["A","P","ER","E"].includes(data.rol)) {
+    objReturn = {status: 'failed', data: {}, msg: `El rol de usuario es inválido, debe seleccionar uno de los siguientes roles: "Administrador", "Profesor", "Emisor de Radio", "Espectador"`};
+    return objReturn;
+  }
+
   return objReturn;
 }
 
@@ -122,8 +129,80 @@ const userUpdateValidations = async (data, id) => {
         return objReturn;
     }
   }
+
+  if(!["A","P","ER","E"].includes(data.rol)) {
+    objReturn = {status: 'failed', data: {}, msg: `El rol de usuario es inválido, debe seleccionar uno de los siguientes roles: "Administrador", "Profesor", "Emisor de Radio", "Espectador"`};
+    return objReturn;
+  }
   
   return objReturn;
+}
+
+const userCreationMail = (userData) => {
+  const mailOptions = {
+    from: nodeMailerConfig.email,
+    to: userData.login,
+    subject: `Nuevo Usuario Creado, ${nodeMailerConfig.platform_name}`,
+    text: `
+      Buenos dias estimado ${userData.person.name} ${userData.person.lastname}.
+      <br/>
+      <br/>
+      Nos complace notificarle que su usuario interno dentro de la plataforma ${nodeMailerConfig.platform_name} ha sido creado exitosamente!!<br/>
+      Para verificar su usuario debe hacer click en el siguiente enlace<br/>
+      <a href="${nodeMailerConfig.frontend_url}/userVerificacion/${userData.id}" target="_blank">Enlace de Verificación</a>
+    `
+  };
+  nodeMailerConfig.transporter.sendMail(mailOptions, function(err, data) {
+    if (err) {
+      console.log("Error " + err);
+    } else {
+      console.log("Email sent successfully");
+    }
+  });
+}
+
+
+exports.userVerify = async (req, res) => {
+  const bcrypt = require("bcrypt");
+  const id = req.params.id;
+  const userSearch = await User.findByPk(id);
+  const unexpectedErrorMessage = "Ocurrió un error inesperado durante la verificación del usuario... Vuelva a intentarlo mas tarde.";
+
+  if(userSearch.length == 0) {
+    res.status(404).send({'message': 'El usuario no fue encontrado.'});
+    return;
+  }
+
+  if(userSearch.dataValues.verifiedDate && userSearch.dataValues.verifiedToken) {
+    res.status(400).send({'message': 'El usuario ya había sido verificado previamente.'});
+    return;
+  }
+
+  const currentDateTime = new Date();
+  const key = `${userSearch.dataValues.login}_${currentDateTime.getDay()}${currentDateTime.getMonth()+1}${currentDateTime.getFullYear()}${currentDateTime.getHours()}${currentDateTime.getMinutes()}${currentDateTime.getSeconds()}_${id}`;
+  
+  bcrypt.genSalt(10, (err, salt) => {
+    bcrypt.hash(key, salt, function(err, hash) {
+
+        const bodyData = {
+          verifiedDate: currentDateTime,
+          verifiedToken: hash
+        }
+      
+        User.update(bodyData, {where: {id: id}})
+        .then(async num => {
+          if (num == 1) {
+            res.status(200).send({message: "El usuario fue verificado satisfactoriamente!!"});
+          } else {
+            res.status(400).send({message: unexpectedErrorMessage});
+          }
+        })
+        .catch(err => {
+          res.status(500).send({message: unexpectedErrorMessage});
+        });
+    })
+  })
+  
 }
 
 //Insert new User
@@ -140,13 +219,18 @@ exports.create = async (req, res) => {
       bcrypt.hash(userDbPassword, salt, function(err, hash) {
           // Store hash in the database
           // Create an User
-          const user = {
+          let user = {
             login: req.body.login.trim(),
             password: hash,
-            person_id: req.body.id_persona
+            person_id: req.body.id_persona,
+            rol: req.body.rol
           };
           // Save student in the database
-          User.create(user).then(data => {
+          User.create(user).then(async data => {
+            user.id = data.id;
+            const personData = await db.person.findAll({where: {id: user.person_id}});
+            user.person = personData[0].dataValues;
+            userCreationMail(user);
             res.send(data);
           })
           .catch(err => {
@@ -233,7 +317,8 @@ exports.update = async (req, res) => {
   }
   const userSearch = await User.findAll({where: {id: {[Op.eq]: id} }});
   let bodyData = {
-    login: req.body.login
+    login: req.body.login,
+    rol: req.body.rol
   }
   if(bodyData.login != userSearch[0].dataValues.login) {
     bodyData.verifiedDate = null;
