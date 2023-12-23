@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize, User) => {
+    const functions = require('../routes/functions');
     const EmisionRadio = sequelize.define("emision_radio", {
         id_emisor: {
             type: Sequelize.INTEGER

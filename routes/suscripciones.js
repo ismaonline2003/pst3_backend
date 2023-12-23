@@ -6,6 +6,8 @@ module.exports = app => {
     router.post("/", suscripcion.create);
     
     router.get("/", suscripcion.findAll);
+
+    router.get("/api/searchPersonas", suscripcion.searchPersonas);
   
     router.get("/:id", suscripcion.findOne);
   

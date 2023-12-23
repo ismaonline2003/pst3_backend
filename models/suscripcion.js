@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize, Usuario) => {
+    const functions = require('../routes/functions');
     const Suscripcion = sequelize.define("suscripcion", {
         user_id: {
             type: Sequelize.INTEGER
@@ -7,6 +8,9 @@ module.exports = (sequelize, Sequelize, Usuario) => {
             type: Sequelize.DATE
         },
         username: {
+            type: Sequelize.STRING
+        },
+        email: {
             type: Sequelize.STRING
         },
         tipo: {

@@ -1,4 +1,5 @@
 module.exports = (sequelize, Sequelize) => {
+    const functions = require('../routes/functions');
     const RadioEspectador = sequelize.define("radio_espectador", {
         activo: {
             type: Sequelize.BOOLEAN
