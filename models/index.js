@@ -71,6 +71,7 @@ db.suscripcion = require("./suscripcion.js")(sequelizeInstance, Sequelize, db.us
 db.radio_espectador = require("./radio_espectador.js")(sequelizeInstance, Sequelize);
 db.visualizacion_emision_radio = require("./visualizacion_emision_radio.js")(sequelizeInstance, Sequelize, db.emision_radio, db.suscripcion, db.radio_espectador);
 db.radio_espectador_mensaje = require("./radio_espectador_mensaje.js")(sequelizeInstance, Sequelize, db.emision_radio, db.suscripcion, db.radio_espectador);
+db.logs_sistema = require("./logs_sistema.js")(sequelizeInstance, Sequelize, db.user);
 
 
 //foreing keys

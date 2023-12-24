@@ -55,6 +55,7 @@ exports.create = async (req, res) => {
         Estudiante.create(estudianteData).then(data => {
             estudianteData.person = personData.dataValues;
             estudianteData.id = data.dataValues.id;
+            functions.createActionLogMessage(db, "Estudiante", req.headers.authorization, estudianteData.id);
             res.send(estudianteData);
         }).catch(err => {
             res.status(500).send({
@@ -220,6 +221,7 @@ exports.update = async (req, res) => {
       Estudiante.update({nro_expediente: bodyData.nro_expediente, year_ingreso: bodyData.year_ingreso}, {where: { id: id }})
       .then(num => {
           if(num == 1) {
+            functions.updateActionLogMessage(db, "Estudiante", req.headers.authorization, id);
             res.send({message: "El estudiante fue actualizado satisfactoriamente!!"});
           } else {
             res.status(400).send({message: errorMessage});
@@ -241,6 +243,7 @@ exports.delete = (req, res) => {
   })
     .then(num => {
       if (num == 1) {
+        functions.deleteActionLogMessage(db, "Estudiante", req.headers.authorization, id);
         res.send({
           message: "El estudiante fue eliminado exitosamente!!"
         });

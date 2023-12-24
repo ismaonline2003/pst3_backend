@@ -87,6 +87,7 @@ exports.create = async (req, res) => {
       turno: bodyData.turno
     })
     .then(seccionRes => {
+      functions.createActionLogMessage(db, "Sección", req.headers.authorization, seccionRes.id);
       res.status(200).send(seccionRes.dataValues);
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -199,6 +200,7 @@ exports.update = async (req, res) => {
 
     Seccion.update(bodyData, {where: {id: id}})
     .then(seccionRes => {
+      functions.updateActionLogMessage(db, "Sección", req.headers.authorization, id);
       res.send({message: "El registro fue actualizado satisfactoriamente!!"});
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -213,6 +215,7 @@ exports.delete = (req, res) => {
     })
     .then(num => {
         if (num == 1) {
+          functions.deleteActionLogMessage(db, "Sección", req.headers.authorization, id);
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });

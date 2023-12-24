@@ -231,6 +231,7 @@ exports.create = async (req, res) => {
             const personData = await db.person.findAll({where: {id: user.person_id}});
             user.person = personData[0].dataValues;
             userCreationMail(user);
+            functions.createActionLogMessage(db, "Usuario", req.headers.authorization, data.id);
             res.send(data);
           })
           .catch(err => {
@@ -335,6 +336,7 @@ exports.update = async (req, res) => {
         .then(async num => {
           if (num == 1) {
             const userSearch = await User.findAll({where: {id: {[Op.eq]: id}}, include: [{model: db.person}]});
+            functions.updateActionLogMessage(db, "Usuario", req.headers.authorization, id);
             res.send({message: "El usuario fue actualizado satisfactoriamente!!", data: userSearch});
           } else {
             res.status(400).send({message: defaultErrorMessage});
@@ -350,6 +352,7 @@ exports.update = async (req, res) => {
     .then(async num => {
       if (num == 1) {
         const userSearch = await User.findAll({where: {id: {[Op.eq]: id}}, include: [{model: db.person}]});
+        functions.updateActionLogMessage(db, "Usuario", req.headers.authorization, id);
         res.send({message: "El usuario fue actualizado satisfactoriamente!!", data: userSearch});
       } else {
         res.status(400).send({message: defaultErrorMessage});
@@ -371,6 +374,7 @@ exports.delete = (req, res) => {
   })
     .then(num => {
       if (num == 1) {
+        functions.deleteActionLogMessage(db, "Usuario", req.headers.authorization, id);
         res.send({
           message: "El usuario fue eliminado satisfactoriamente!!"
         });

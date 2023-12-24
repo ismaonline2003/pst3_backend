@@ -318,7 +318,10 @@ exports.create = async (req, res) => {
       }
       bodyData.docs = docsCreate.data;
       await t.commit();
-      const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}})
+      const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}});
+
+      functions.createActionLogMessage(db, "Proyecto", req.headers.authorization, bodyData.id);
+
       res.status(200).send(proyectoSearch.dataValues);
     }).catch(async (err) => {
       await t.rollback();
@@ -469,6 +472,9 @@ exports.update = async (req, res) => {
 
         await t.commit();
         const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}});
+
+        functions.updateActionLogMessage(db, "Proyecto", req.headers.authorization, bodyData.id);
+
         res.status(200).send({...proyectoSearch.dataValues, message: "El proyecto fue actualizado exitosamente!!"});
 
       }).catch(async (err) => {
@@ -527,6 +533,7 @@ exports.delete = async (req, res) => {
     .then(num => {
         if (num == 1) {
           t.commit();
+          functions.deleteActionLogMessage(db, "Proyecto", req.headers.authorization, id);
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });

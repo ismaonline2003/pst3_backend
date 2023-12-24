@@ -58,6 +58,9 @@ exports.create = async (req, res) => {
     Suscripcion.create(createData)
     .then(suscripcionRes => {
       suscripcionRes.dataValues.user = userSearch[0].dataValues;
+
+      functions.createActionLogMessage(db, "Suscripción", req.headers.authorization, suscripcionRes.id);
+
       res.status(200).send(suscripcionRes.dataValues);
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -170,6 +173,7 @@ exports.update = async (req, res) => {
     const errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
     Suscripcion.update({activa: bodyData.activa}, {where: {id: id}})
     .then(seccionRes => {
+      functions.updateActionLogMessage(db, "Suscripción", req.headers.authorization, id);
       res.send({message: "La suscripción fue desactivada satisfactoriamente!!"});
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -184,6 +188,7 @@ exports.delete = (req, res) => {
     })
     .then(num => {
         if (num == 1) {
+          functions.deleteActionLogMessage(db, "Suscripción", req.headers.authorization, id);
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });

@@ -117,13 +117,19 @@ exports.create = async (req, res) => {
 
     Noticia.create(createData, {transaction: t})
     .then(async (recordRes) => {
+
       let createImgs = await createNoticiaImgsRecords(recordRes.id, contentPrepared.fileList, t);
       if(createImgs.status != 'success') {
         errorMessage = createImgs.msg;
         throw new Error(errorMessage);
       }
+
       await t.commit();
-      const noticiaSearch = await Noticia.findOne({include: { all: true, nested: true }, where: {id: recordRes.id}})
+
+      const noticiaSearch = await Noticia.findOne({include: { all: true, nested: true }, where: {id: recordRes.id}});
+
+      functions.createActionLogMessage(db, "Noticia", req.headers.authorization, recordRes.id);
+
       res.status(200).send(noticiaSearch.dataValues);
     }).catch(async (err) => {
       await t.rollback();
@@ -242,6 +248,9 @@ exports.update = async (req, res) => {
       if(!bodyData.post && noticiaSearch.wordpress_id) {
         //ocultar
       }
+
+      functions.updateActionLogMessage(db, "Noticia", req.headers.authorization, bodyData.id);
+
       res.send({message: "La noticia fue actualizada satisfactoriamente!!", data: noticiaSearch});
     }).catch(async(err) => {
       await t.rollback();
@@ -257,6 +266,7 @@ exports.delete = (req, res) => {
     })
     .then(num => {
         if (num == 1) {
+          functions.deleteActionLogMessage(db, "Noticia", req.headers.authorization, id);
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });

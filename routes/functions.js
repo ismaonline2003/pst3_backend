@@ -1,11 +1,14 @@
 const jwt = require('jsonwebtoken');
+const NodeCache = require( "node-cache" ); 
 exports.verifyToken = (req, res, next) => {
     const token = req.headers["authorization"];
     if (token == null) return res.sendStatus(403);
     jwt.verify(token, "secret_key", (err, user) => {
-       if (err) return res.sendStatus(404);
-       req.user = user;
-       next();
+        if (err) return res.sendStatus(404);
+        const myCache = new NodeCache();
+        myCache.set("user_data", user.userid, 20000); 
+        req.user = user;
+        next();
     });
 }
 
@@ -150,4 +153,43 @@ exports.searchUserByPersonName = async (db, value) => {
         }
     }
     return ids_list;
+}
+
+exports.createActionLogMessage = async (db, table_name, token, recordId) => {
+    jwt.verify(token, "secret_key", async (err, user) => {
+        const userSearch= await db.user.findAll({where: {id: parseInt(user.userid)}, include: [{model: db.person}], limit: 1})
+        const userData = userSearch[0].dataValues;
+        db.logs_sistema.create({
+            user_id: userData.id,
+            tipo: 'create',
+            body: `<strong>Creación</strong> en ${table_name} del <strong>usuario</strong> ${userData.person.name} ${userData.person.lastname} ${userData.person.ci} ${userData.login} con <strong>referencia</strong> ${recordId}`,
+            fecha: new Date()
+        });
+    })
+}
+
+exports.updateActionLogMessage = async (db, table_name, token, recordId) => {
+    jwt.verify(token, "secret_key", async (err, user) => {
+        const userSearch= await db.user.findAll({where: {id: parseInt(user.userid)}, include: [{model: db.person}], limit: 1})
+        const userData = userSearch[0].dataValues;
+        db.logs_sistema.create({
+            user_id: userData.id,
+            tipo: 'update',
+            body: `<strong>Actualización</strong> en ${table_name} del <strong>usuario</strong> ${userData.person.name} ${userData.person.lastname} ${userData.person.ci} ${userData.login} con <strong>referencia</strong> ${recordId}`,
+            fecha: new Date()
+        });
+    })
+}
+
+exports.deleteActionLogMessage = async (db, table_name, token, recordId) => {
+    jwt.verify(token, "secret_key", async (err, user) => {
+        const userSearch= await db.user.findAll({where: {id: parseInt(user.userid)}, include: [{model: db.person}], limit: 1})
+        const userData = userSearch[0].dataValues;
+        db.logs_sistema.create({
+            user_id: userData.id,
+            tipo: 'delete',
+            body: `<strong>Eliminación</strong> en ${table_name} del <strong>usuario</strong> ${userData.person.name} ${userData.person.lastname} ${userData.person.ci} ${userData.login} con <strong>referencia</strong> ${recordId}`,
+            fecha: new Date()
+        });
+    })
 }

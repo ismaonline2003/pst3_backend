@@ -28,6 +28,7 @@ exports.create = async (req, res) => {
     })
     .then(recordRes => {
         bodyData.id = recordRes.dataValues.id;
+        functions.createActionLogMessage(db, "Grabación", req.headers.authorization, recordRes.dataValues.id);
         res.status(200).send(bodyData);
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -103,6 +104,7 @@ exports.update = async (req, res) => {
       descripcion: bodyData.descripcion
     }, {where: {id: id}})
     .then(recordRes => {
+      functions.updateActionLogMessage(db, "Grabación", req.headers.authorization, id);
       res.send({message: "El registro fue actualizado satisfactoriamente!!", data: bodyData});
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -117,6 +119,7 @@ exports.delete = (req, res) => {
     })
     .then(num => {
         if (num == 1) {
+          functions.deleteActionLogMessage(db, "Grabación", req.headers.authorization, id);
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });

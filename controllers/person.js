@@ -1,6 +1,7 @@
 const db = require("../models");
 const Person = db.person;
 const Op = db.Sequelize.Op;
+const functions = require('../routes/functions');
 
 //Insert new Person
 exports.create = (req, res) => {
@@ -17,6 +18,7 @@ exports.create = (req, res) => {
   // Save student in the database
   Person.create(person)
     .then(data => {
+      functions.createActionLogMessage(db, "Persona", req.headers.authorization, data.id);
       res.send(data);
     })
     .catch(err => {
@@ -95,6 +97,7 @@ exports.update = (req, res) => {
   })
     .then(num => {
       if (num == 1) {
+        functions.updateActionLogMessage(db, "Persona", req.headers.authorization, id);
         res.send({
           message: "Successfully Updated Person."
         });
@@ -120,6 +123,7 @@ exports.delete = (req, res) => {
   })
     .then(num => {
       if (num == 1) {
+        functions.deleteActionLogMessage(db, "Persona", req.headers.authorization, id);
         res.send({
           message: "Successfully deleted student!"
         });
