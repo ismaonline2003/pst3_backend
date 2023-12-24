@@ -421,6 +421,11 @@ exports.login = (req, res) => {
                     });
                   } else {
                     currentTime.setHours(currentTime.getHours() + 10);
+                    db.logs_sistema.create({
+                      user_id: data[0].id,
+                      tipo: 'inicio_sesion',
+                      fecha: new Date()
+                    });
                     res.status(200).send({
                       message: "El usuario se ha logeado exitosamente!!",
                       token: token,
