@@ -5,9 +5,20 @@ const Person = db.person;
 const Estudiante = db.estudiante;
 const Op = db.Sequelize.Op;
 
+
+const processImage = (file) => {
+  const fileRead = fs.readFileSync(file.path);
+  const filename = functions.getFileName(file);
+  const filePath = `src/fileUploads/${filename}`;
+  fs.writeFileSync(filePath, fileRead);
+  fs.unlinkSync(file.path);
+  return filename;
+}
+
 exports.create = async (req, res) => {
   let bodyData = JSON.parse(req.body.data);
   let fotoCarnet = req.file;
+  let fotoCarnetFilepath = "";
   const validatePersonData = functions.personaFieldsValidations(bodyData.person);
   const errorMessage = "Ocurrió un error inesperado al intentar crear a el estudiante.";
   
@@ -19,10 +30,10 @@ exports.create = async (req, res) => {
   
   if(bodyData.uploadFotoCarnet) {
     if(fotoCarnet) {
-      var imageData = fs.readFileSync(fotoCarnet.path);
-      bodyData.person.foto_carnet = imageData;
+      fotoCarnetFilepath = processImage(fotoCarnet);
+      bodyData.person.foto_carnet_filename = fotoCarnetFilepath;
     } else {
-      bodyData.person.foto_carnet = null;
+      bodyData.person.foto_carnet_filename = "";
     }
   }
 
@@ -178,10 +189,10 @@ exports.update = async (req, res) => {
   }
   if(bodyData.updateFotoCarnet) {
     if(fotoCarnet) {
-      var imageData = fs.readFileSync(fotoCarnet.path);
-      bodyData.person.foto_carnet = imageData;
+      const fotoCarnetFilepath = processImage(fotoCarnet);
+      bodyData.person.foto_carnet_filename = fotoCarnetFilepath;
     } else {
-      bodyData.person.foto_carnet = null;
+      bodyData.person.foto_carnet_filename = "";
     }
   }
   let ciCondition = {where: {

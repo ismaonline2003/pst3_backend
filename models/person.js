@@ -31,6 +31,9 @@ module.exports = (sequelize, Sequelize) => {
       },
       foto_carnet: {
         type: Sequelize.BLOB('long')
+      },
+      foto_carnet_filename: {
+        type: Sequelize.STRING
       }
     }, 
     {

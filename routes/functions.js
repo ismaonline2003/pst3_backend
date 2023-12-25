@@ -193,3 +193,23 @@ exports.deleteActionLogMessage = async (db, table_name, token, recordId) => {
         });
     })
 }
+
+exports.getFileName = (file) => {
+    let filename = "";
+    let type = "";
+    filename = `${file.filename}`;
+    if(file.mimetype == 'image/jpeg') {
+      type = "jpeg";
+    }
+    if(file.mimetype == 'image/jpg') {
+      type = "jpg";
+    }
+    if(file.mimetype == 'image/png') {
+      type = "png";
+    }
+    if(file.mimetype == 'application/pdf') {
+      type = "pdf";
+    }
+    filename += `.${type}`;
+    return filename;
+  }
