@@ -92,6 +92,7 @@ require("./routes/seccion.js")(app);
 require("./routes/proyecto.js")(app);
 require("./routes/noticia.js")(app);
 require("./routes/grabacion.js")(app);
+require("./routes/emision.js")(app);
 require("./routes/categoria_noticia.js")(app);
 require("./routes/suscripciones.js")(app);
 require("./routes/files.js")(app);

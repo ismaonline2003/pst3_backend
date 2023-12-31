@@ -1,3 +1,4 @@
+const db = require("../models");
 const fs = require('fs');
 const ffmepg = require('ffmpeg-static');
 const childProcess = require('child_process');
@@ -24,6 +25,7 @@ class WSController {
     connection = (socket) => {
         this.socket = socket;
         this.socket.on('MicroAudio', this.onMicroAudio);
+        this.socket.on('chatMessage', this.onChatMessage);
     }
     sendAudioStreamToClients = (io) => {
         let filesList = fs.readdirSync(fs_latestAudioPieces);
@@ -75,12 +77,42 @@ class WSController {
             }
         });
     }
+    createCurrentEmisionChatMessage = () => {
+        db.emision_radio.findAll({
+            where: {status_actual: "en_emision"}, 
+            order: [['fecha_inicio', 'DESC']],
+            limit: 1
+        })
+        .then((data) => {
+            res.send(data[0]);
+        }).catch(err => {
+            res.status(500).send({message: "Ocurrió un error durante la búsqueda de la emisión."});
+        });
+    }
     onMicroAudio = async (data) => {
-        console.log('data.audioData', data.audioData);
         fs.writeFile(fs_currentAudioFile, data.audioData, () => console.log('audio saved!') );
         this._sliceAudio();
         //const stream = await blobObj.stream();
         //const outbound = JSON.stringify(data);
+    }
+    onChatMessage = (data) => {
+        const currentDate = new Date();
+        this.socket.emit("chatMessage", {...data, time: currentDate});
+
+        db.emision_radio.findAll({
+            where: {status_actual: "en_emision"}, 
+            order: [['fecha_inicio', 'DESC']],
+            limit: 1
+        })
+        .then((emisionRadioData) => {
+            db.radio_espectador_mensaje.create({
+                id_emision_radio: emisionRadioData[0].dataValues.id,
+                user_id: data.user_id,
+                username: data.username,
+                content: data.content,
+                fecha_envio: currentDate
+            })
+        })
     }
     close = () => {
     }

@@ -1,17 +1,20 @@
-module.exports = (sequelize, Sequelize, EmisionRadio, RadioSuscriptor, RadioEspectador) => {
+module.exports = (sequelize, Sequelize, EmisionRadio, Usuario) => {
     const functions = require('../routes/functions');
     const RadioEspectadorMensaje = sequelize.define("radio_espectador_mensaje", {
         id_emision_radio: {
             type: Sequelize.INTEGER
         },
-        id_radio_suscriptor: {
+        user_id: {
             type: Sequelize.INTEGER
         },
-        id_radio_espectador: {
-            type: Sequelize.INTEGER
-        },
-        mensaje: {
+        username: {
             type: Sequelize.STRING
+        },
+        content: {
+            type: Sequelize.STRING
+        },
+        fecha_envio: {
+            type: Sequelize.DATE
         }
     }, 
     {
@@ -33,21 +36,12 @@ module.exports = (sequelize, Sequelize, EmisionRadio, RadioSuscriptor, RadioEspe
       onDelete: 'RESTRICT'
     });
 
-    RadioSuscriptor.hasMany(RadioEspectadorMensaje,  {
-        foreignKey: "id_radio_suscriptor",
+    Usuario.hasMany(RadioEspectadorMensaje,  {
+        foreignKey: "user_id",
         onDelete: 'RESTRICT'
     });
-    RadioEspectadorMensaje.belongsTo(RadioSuscriptor, {
-      foreignKey: "id_radio_suscriptor",
-      onDelete: 'RESTRICT'
-    });
-
-    RadioEspectador.hasMany(RadioEspectadorMensaje,  {
-        foreignKey: "id_radio_espectador",
-        onDelete: 'RESTRICT'
-    });
-    RadioEspectadorMensaje.belongsTo(RadioEspectador, {
-      foreignKey: "id_radio_espectador",
+    RadioEspectadorMensaje.belongsTo(Usuario, {
+      foreignKey: "user_id",
       onDelete: 'RESTRICT'
     });
 
@@ -57,12 +51,8 @@ module.exports = (sequelize, Sequelize, EmisionRadio, RadioSuscriptor, RadioEspe
         functions.onDeleteRestrictValidation(RadioEspectadorMensaje, "id_emision_radio", record.id);
     });
 
-    RadioSuscriptor.beforeDestroy(async (record, options) => {
-        functions.onDeleteRestrictValidation(RadioEspectadorMensaje, "id_radio_suscriptor", record.id);
-    });
-
-    RadioEspectador.beforeDestroy(async (record, options) => {
-        functions.onDeleteRestrictValidation(RadioEspectadorMensaje, "id_radio_espectador", record.id);
+    Usuario.beforeDestroy(async (record, options) => {
+        functions.onDeleteRestrictValidation(RadioEspectadorMensaje, "user_id", record.id);
     });
 
     return RadioEspectadorMensaje;
