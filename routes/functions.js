@@ -5,8 +5,6 @@ exports.verifyToken = (req, res, next) => {
     if (token == null) return res.sendStatus(403);
     jwt.verify(token, "secret_key", (err, user) => {
         if (err) return res.sendStatus(404);
-        const myCache = new NodeCache();
-        myCache.set("user_data", user.userid, 20000); 
         req.user = user;
         next();
     });

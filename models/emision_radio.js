@@ -12,10 +12,10 @@ module.exports = (sequelize, Sequelize, User) => {
         },
         status_actual: {
             type: Sequelize.ENUM,
-            values: ["en_emision", "pausada", "finalizada", "programada"]
+            values: ["en_emision", "finalizada", "programada"]
         },
         duracion: {
-            type: Sequelize.FLOAT
+            type: Sequelize.INTEGER
         },
         fecha_inicio: {
             type: Sequelize.DATE

@@ -6,8 +6,10 @@ const WSControllerClass = require('./controllers/websocket.js');
 const { createServer } = require('node:http');
 const cors = require("cors");
 const express = require("express");
+const cron = require('node-cron')
 const app = express();
 const WSserver = createServer(app);
+
 //set port for websocket
 
 
@@ -105,21 +107,12 @@ WSserver.listen(3002, () => {
 });
 
 const WSController = new WSControllerClass();
-console.log('hello web socket connection');
 io.on('connection', WSController.connection);
 
-//WSController.sendAudioStreamToClients();
-/*
-for(let i = 0; i < 12000; i++) {
-  setTimeout(async () => {
-    await WSController.sendAudioStreamToClients();
-  }, 3000);
-}
-*/
- //const wss = new WebSocket.Server({ port: 3002 });
-//const clients = new Map();
-//wsController.clients = clients;
-//wss.on('connection', wsController.connection);
-//console.log("wss up");
+//*cron jobs*//
+
+cron.schedule('*/4 * * * * *', () => {
+  WSController.sendAudioStreamToClients(io);
+});
 
 

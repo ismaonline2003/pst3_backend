@@ -8,6 +8,10 @@ module.exports = app => {
     router.post("/", grabacion.create);
     
     router.get("/", grabacion.findAll);
+
+    router.get("/api/emisionActual", grabacion.getEmisionActual);
+
+    router.get("/api/finalizar/:id", grabacion.finalizar);
   
     router.get("/:id", grabacion.findOne);
   

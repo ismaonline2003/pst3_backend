@@ -1,8 +1,14 @@
 const fs = require('fs');
 const ffmepg = require('ffmpeg-static');
 const childProcess = require('child_process');
-const currentAudioFile = `${process.cwd()}/src/current_emision/curent_audio.mp3`;
-const outputAudioFile = `${process.cwd()}/src/current_emision/output_audio.mp3`;
+const cron = require('node-cron')
+const childProcess_currentAudioFile = `${process.cwd()}/src/current_emision/current_audio.mp3`;
+const childProcess_outputAudioFile = `${process.cwd()}/src/current_emision/output_audio.mp3`;
+
+const fs_currentAudioFile = `./src/current_emision/current_audio.mp3`;
+const fs_outputAudioFile = `./src/current_emision/output_audio.mp3`;
+const fs_audioPieces = `./src/current_emision/pieces`;
+const fs_latestAudioPieces = `./src/current_emision/latest_pieces`;
 
 const { Readable } = require('stream');
 class WSController {
@@ -19,12 +25,15 @@ class WSController {
         this.socket = socket;
         this.socket.on('MicroAudio', this.onMicroAudio);
     }
-    sendAudioStreamToClients = () => {
-        setTimeout(() => {
-            let read = fs.readFileSync('./src/current_emision/output_audio.mp3');
-            this.socket.emit('radioAudio', {'file': read});
-            this.sendAudioStreamToClients();
-        }, 9000);
+    sendAudioStreamToClients = (io) => {
+        let filesList = fs.readdirSync(fs_latestAudioPieces);
+        if(filesList.length > 0) {
+            let filePath = `${fs_latestAudioPieces}/${filesList[0]}`;
+            let read = fs.readFileSync(filePath);
+            io.sockets.emit('radioAudio', {'file': read});
+            fs.copyFileSync(filePath,  `${fs_audioPieces}/${filesList[0]}`);
+            fs.unlinkSync(filePath);
+        }
     }
     _sliceAudio = async() => {
         const self = this;
@@ -35,12 +44,12 @@ class WSController {
             [
                 '-y',
                 '-i',
-                currentAudioFile,
+                childProcess_currentAudioFile,
                 '-codec:a',
                 'libmp3lame',
                 '-qscale:a',
                 '5',
-                `${outputAudioFile}`
+                `${childProcess_outputAudioFile}`
             ]
         );
         await child.on('error', () => {
@@ -57,9 +66,10 @@ class WSController {
         });
         
         await child.on('close', (code) => {
-            console.log(`Process exited with code: ${code}`);
             if (code === 0) {
-                console.log(`FFmpeg finished successfully`);
+                console.log(`Process exited with code: ${code}`);
+                const currentDate = new Date();
+                fs.copyFileSync(fs_outputAudioFile,  `${fs_latestAudioPieces}/${currentDate.getTime()}.mp3`);
             } else {
                 console.log(`FFmpeg encountered an error, check the console output`);
             }
@@ -67,7 +77,7 @@ class WSController {
     }
     onMicroAudio = async (data) => {
         console.log('data.audioData', data.audioData);
-        fs.writeFile('./src/current_emision/curent_audio.mp3', data.audioData, () => console.log('audio saved!') );
+        fs.writeFile(fs_currentAudioFile, data.audioData, () => console.log('audio saved!') );
         this._sliceAudio();
         //const stream = await blobObj.stream();
         //const outbound = JSON.stringify(data);
