@@ -4,6 +4,150 @@ const Op = db.Sequelize.Op;
 const functions = require('../routes/functions')
 const nodeMailerConfig = require('../config/nodemailer_config');
 
+
+const personaFieldsValidations = async (data) => {
+  let objReturn = {status: 'success', msg: '', data: ''}
+  const whiteSpacesRegEx = /\s/g;
+  const numbersRegEx = /\d/g;
+  const onlyLettersRegEx =  /^[A-Za-z]+$/g;
+  const lettersRegEx =  /[A-Za-z]/g;
+  const ciTypes = ["V", "J", "E", "P"];
+  const sexoOptions = ["M", "F"];
+  const personSearch = await db.person.findAll({where: {ci: data.ci}});
+  
+  if(personSearch.length > 0) {
+    objReturn = {status: 'already_exists', msg: `La persona con la cédula "${data.ci}" ya está registrada en el sistema.`, data: {}};
+    return objReturn;
+  }
+
+  //ci type validations    
+  if(!ciTypes.includes(data.ci_type)) {
+      objReturn = {status: 'error', msg: 'El tipo de número de cédula debe ser uno de los siguientes: V, J, E, P.'}
+      return objReturn;
+  }
+
+  //sexo validations
+  if(!sexoOptions.includes(data.sexo)) {
+      objReturn = {status: 'error', msg: 'Debe elegir entre los sexo Masculino y Femenino.'}
+      return objReturn;
+  }
+
+  //ci validations
+  if(whiteSpacesRegEx.test(data.ci)) {
+      objReturn = {status: 'error', msg: 'El número de cédula no puede contener espacios en blanco.'}
+      return objReturn;
+  }
+  if(isNaN(parseInt(data.ci))) {
+      objReturn = {status: 'error', msg: 'El número de cédula solo puede contener números.'}
+      return objReturn;
+  }
+  if(data.ci == "0") {
+      objReturn = {status: 'error', msg: 'El número de cédula no puede ser 0.'}
+      return objReturn;
+  }
+  if(data.ci.length > 9) {
+      objReturn = {status: 'error', msg: 'El número de cédula no puede superar los 9 caracteres.'}
+      return objReturn;
+  }
+  if(data.ci == "") {
+      objReturn = {status: 'error', msg: 'El  número de cédula no puede estar vacío.'}
+      return objReturn;
+  }
+
+  //name validations
+  if(whiteSpacesRegEx.test(data.name)) {
+      objReturn = {status: 'error', msg: 'El nombre no puede contener espacios en blanco.'}
+      return objReturn;
+  }
+  if(numbersRegEx.test(data.name)) {
+      objReturn = {status: 'error', msg: 'El nombre no puede contener números.'}
+      return objReturn;
+  }
+  if(!data.name.match(onlyLettersRegEx)) {
+      objReturn = {status: 'error', msg: 'El nombre solo puede contener letras.'}
+      return objReturn;
+  }
+  if(data.name.length > 20) {
+      objReturn = {status: 'error', msg: 'El nombre no puede superar los 20 caracteres.'}
+      return objReturn;
+  }
+  if(data.name == "") {
+      objReturn = {status: 'error', msg: 'El nombre no puede estar vacío.'}
+      return objReturn;
+  }
+
+  //lastname validations
+  if(whiteSpacesRegEx.test(data.lastname)) {
+      objReturn = {status: 'error', msg: 'El apellido no puede contener espacios en blanco.'}
+      return objReturn;
+  }
+  if(numbersRegEx.test(data.lastname)) {
+      objReturn = {status: 'error', msg: 'El apellido no puede contener números.'}
+      return objReturn;
+  }
+  if(!data.lastname.match(onlyLettersRegEx)) {
+      objReturn = {status: 'error', msg: 'El apellido solo puede contener letras.'}
+      return objReturn;
+  }
+  if(data.lastname.length > 20) {
+      objReturn = {status: 'error', msg: 'El apellido no puede superar los 20 caracteres.'}
+      return objReturn;
+  }
+  if(data.lastname == "") {
+      objReturn = {status: 'error', msg: 'El apellido no puede estar vacío.'}
+      return objReturn;
+  }
+
+  //phone validations
+  if(whiteSpacesRegEx.test(data.phone)) {
+      objReturn = {status: 'error', msg: 'El número de telefono no puede contener espacios en blanco.'}
+      return objReturn;
+  }
+  if(data.phone.match(lettersRegEx)) {
+      objReturn = {status: 'error', msg: 'El número de telefono no puede contener letras.'}
+      return objReturn;
+  }
+  if(data.phone.length > 15) {
+      objReturn = {status: 'error', msg: 'El número de telefono no puede superar los 15 digitos.'}
+      return objReturn;
+  }
+  if(data.phone == "") {
+      objReturn = {status: 'error', msg: 'El número de teléfono no puede estar vacío.'}
+      return objReturn;
+  }
+
+  //mobile validations
+  if(data.mobile) {
+      if(whiteSpacesRegEx.test(data.mobile)) {
+          objReturn = {status: 'error', msg: 'El número de telefono móvil no puede contener espacios en blanco.'}
+          return objReturn;
+      }
+      if(data.mobile.match(lettersRegEx)) {
+          objReturn = {status: 'error', msg: 'El número de telefono móvil no puede contener letras.'}
+          return objReturn;
+      }
+      if(data.mobile.length > 15) {
+          objReturn = {status: 'error', msg: 'El número de telefono móvil no puede superar los 15 digitos.'}
+          return objReturn;
+      }
+  }
+
+  let birthDate = new Date(data.birthdate);
+  let currentDate = new Date();
+  if(isNaN(birthDate)) {
+      objReturn = {status: 'error', msg: 'Debe establecer una fecha de nacimiento.'}
+      return objReturn;
+  }
+  if(birthDate instanceof Date) {
+      if(birthDate > currentDate) {
+          objReturn = {status: 'error', msg: 'La fecha de nacimiento no puede ser mayor a la fecha actual.'}
+          return objReturn;
+      }
+  }
+  
+  return objReturn;
+}
+
 const userCreateValidations = async (data) => {
   let objReturn = {status: 'success', message: '', data: {}};
   const emailRegExp =  /^\w+([.-_+]?\w+)*@\w+([.-]?\w+)*(\.\w{2,10})+$/g;
@@ -12,7 +156,7 @@ const userCreateValidations = async (data) => {
   const userSearch = await User.findAll({where: {login: data.login}});
   
   if(userSearch.length > 0) {
-    objReturn = {status: 'already_exists', message: `El email "${data.login}" ya está en uso.`, data: {}};
+    objReturn = {status: 'already_exists', msg: `El email "${data.login}" ya está en uso.`, data: {}};
     return objReturn;
   }
 
@@ -71,6 +215,67 @@ const userCreateValidations = async (data) => {
 
   return objReturn;
 }
+
+const signupValidations = async (data) => {
+  let objReturn = {status: 'success', message: '', data: {}};
+  const emailRegExp =  /^\w+([.-_+]?\w+)*@\w+([.-]?\w+)*(\.\w{2,10})+$/g;
+  const specialCharactersAllowed = /[!@#$%&*?]/;
+  const specialCharsNotAllowed = /[^()_+\-=\[\]{};':"\\|,.<>\/~]/g;
+  const userData = data.userData;
+  const personValidations = await personaFieldsValidations(data.personData);
+  const userSearch = await User.findAll({where: {login: userData.login}});
+  
+  if(personValidations.status != 'success') {
+    return personValidations;
+  }
+
+  if(userSearch.length > 0) {
+    objReturn = {status: 'already_exists', msg: `El email "${userData.login}" ya está en uso.`, data: {}};
+    return objReturn;
+  }
+
+  if(userData.login.trim() == "") {
+      objReturn = {'status': 'failed', 'data': {}, 'msg': 'Se debe definir un email valido para el usuario.'};
+      return objReturn;
+  }
+  
+  if(!emailRegExp.test(userData.login)) {
+      objReturn = {status: 'failed', data: {}, msg: 'El correo electrónico especificado es inválido.'};
+      return objReturn;
+  }
+  if(userData.password.length < 12) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener un mínimo 12 caracteres.'};
+      return objReturn;
+  }
+
+  if(/\s/.test(userData.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña no puede tener espacios en blanco.'};
+      return objReturn;
+  }
+
+  if(!/[A-Z]/.test(userData.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener al menos una letra mayúscula.'};
+      return objReturn;
+  }
+
+  if(!/[a-z]/.test(userData.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener letras minusculas.'};
+      return objReturn;
+  }
+
+  if(!/\d/.test(userData.password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener al menos un caracter numérico.'};
+      return objReturn;
+  }
+
+  if(!specialCharactersAllowed.test(userData.password)) {
+      objReturn = {status: 'failed', data: {}, msg: `La contraseña debe contener al menos uno de los siguientes caracteres especiales: !@#$%&*?`};
+      return objReturn;
+  }
+
+  return objReturn;
+}
+
 
 const userUpdateValidations = async (data, id) => {
   let objReturn = {status: 'success', message: '', data: {}};
@@ -153,6 +358,29 @@ const userCreationMail = (userData) => {
     `
   };
   nodeMailerConfig.transporter.sendMail(mailOptions, function(err, data) {
+    if (err) {
+      console.log("Error " + err);
+    } else {
+      console.log("Email sent successfully");
+    }
+  });
+}
+
+const userSignupMail = (data) => {
+  const mailOptions = {
+    from: nodeMailerConfig.email,
+    to: data.userData.login,
+    subject: `Registro de usuario, ${nodeMailerConfig.platform_name}`,
+    text: `
+      Buenos dias estimado ${data.personData.name} ${data.personData.lastname}.
+      <br/>
+      <br/>
+      Hemos recibido su solicitud de registro de usuario en nuestra plataforma<br/>
+      Para verificar su usuario debe hacer click en el siguiente enlace<br/>
+      <a href="${nodeMailerConfig.frontend_url}/userVerificacion/${data.userData.id}" target="_blank">Enlace de Verificación</a>
+    `
+  };
+  nodeMailerConfig.transporter.sendMail(mailOptions, function(err, mailData) {
     if (err) {
       console.log("Error " + err);
     } else {
@@ -447,6 +675,43 @@ exports.login = (req, res) => {
         error: err
       });
     });
+};
+
+exports.signup = async (req, res) => {
+  const bcrypt = require("bcrypt");
+  const jwt = require('jsonwebtoken');
+  const defaultErrorMessage = "Ocurrió un error inesperado durante el registro de usuario... Vuelva a intentarlo mas tarde";
+  const validations = await signupValidations(req.body);
+  if(validations.status != 'success') {
+    console.log(validations);
+    res.status(400).send({message: validations.msg});
+    return;
+  }
+  const login = req.body.userData.login;
+  const password = req.body.userData.password;
+  const personData = req.body.personData;
+  bcrypt.genSalt(10, (err, salt) => {
+    bcrypt.hash(password, salt, async (err, hash) => {
+        const personCreate = await db.person.create(personData);
+        let user = {
+          login: login,
+          password: hash,
+          person_id: personCreate.dataValues.id,
+          rol: 'E'
+        };
+        User.create(user)
+        .then(async userData => {
+          let userSingupData = req.body;
+          userSingupData.userData.id = userData.dataValues.id;
+          userSingupData.personData.id = userData.dataValues.person_id;
+          userSignupMail(userSingupData);
+          res.send({status: 'success', message: userSingupData});
+        })
+        .catch(err => {
+          res.status(500).send({message: defaultErrorMessage});
+        });
+    })
+  });
 };
 
 exports.logout = (req, res) => {

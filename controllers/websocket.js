@@ -23,9 +23,10 @@ class WSController {
         });
     }
     connection = (socket) => {
+        console.log('socket connection');
         this.socket = socket;
         this.socket.on('MicroAudio', this.onMicroAudio);
-        this.socket.on('chatMessage', this.onChatMessage);
+        this.socket.on('newMessage', this.onChatMessage);
     }
     sendAudioStreamToClients = (io) => {
         let filesList = fs.readdirSync(fs_latestAudioPieces);
@@ -77,42 +78,28 @@ class WSController {
             }
         });
     }
-    createCurrentEmisionChatMessage = () => {
-        db.emision_radio.findAll({
-            where: {status_actual: "en_emision"}, 
-            order: [['fecha_inicio', 'DESC']],
-            limit: 1
-        })
-        .then((data) => {
-            res.send(data[0]);
-        }).catch(err => {
-            res.status(500).send({message: "Ocurrió un error durante la búsqueda de la emisión."});
-        });
-    }
     onMicroAudio = async (data) => {
         fs.writeFile(fs_currentAudioFile, data.audioData, () => console.log('audio saved!') );
         this._sliceAudio();
         //const stream = await blobObj.stream();
         //const outbound = JSON.stringify(data);
     }
-    onChatMessage = (data) => {
+    onChatMessage = async (data) => {
         const currentDate = new Date();
-        this.socket.emit("chatMessage", {...data, time: currentDate});
-
-        db.emision_radio.findAll({
-            where: {status_actual: "en_emision"}, 
-            order: [['fecha_inicio', 'DESC']],
-            limit: 1
-        })
-        .then((emisionRadioData) => {
-            db.radio_espectador_mensaje.create({
-                id_emision_radio: emisionRadioData[0].dataValues.id,
+        const emisionRadioRecord = await db.sequelize.query(`
+            SELECT id FROM emision_radio WHERE status_actual = 'en_emision' ORDER BY fecha_inicio DESC LIMIT 1
+        `);
+        if(emisionRadioRecord.length > 0) {
+            const chatMessageData = await db.radio_espectador_mensaje.create({
+                id_emision_radio: emisionRadioRecord[0][0].id,
                 user_id: data.user_id,
                 username: data.username,
                 content: data.content,
                 fecha_envio: currentDate
             })
-        })
+            this.socket.server.sockets.emit("messages", {...data, time: currentDate, id: chatMessageData.dataValues.id});
+            this.socket.server.sockets.off('newMessage', this.onChatMessage);
+        }
     }
     close = () => {
     }

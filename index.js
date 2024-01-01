@@ -11,10 +11,8 @@ const app = express();
 const WSserver = createServer(app);
 
 //set port for websocket
-
-
 const db = require("./models");
-//const WebSocket = require('ws');
+
 const io = require('socket.io')(WSserver, {
   cors: {
     origin: "*",
@@ -76,11 +74,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// simple route
-app.get("/", (req, res) => {
-  res.json({ message: "Welcome to Users App - Backend!!!" });
-});
-
 //including routes
 require("./routes/person.js")(app);
 require("./routes/users.js")(app);
@@ -111,7 +104,6 @@ const WSController = new WSControllerClass();
 io.on('connection', WSController.connection);
 
 //*cron jobs*//
-
 cron.schedule('*/4 * * * * *', () => {
   WSController.sendAudioStreamToClients(io);
 });

@@ -22,6 +22,8 @@ module.exports = app => {
 
     router.post("/login", users.login);
 
+    router.post("/signup", users.signup);
+
     router.put("/api/logout", functions.verifyToken, users.logout);
   
     app.use('/api/users', router);
