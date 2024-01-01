@@ -276,7 +276,6 @@ const signupValidations = async (data) => {
   return objReturn;
 }
 
-
 const userUpdateValidations = async (data, id) => {
   let objReturn = {status: 'success', message: '', data: {}};
   const emailRegExp =  /^\w+([.-_+]?\w+)*@\w+([.-]?\w+)*(\.\w{2,10})+$/g;
@@ -354,7 +353,7 @@ const userCreationMail = (userData) => {
       <br/>
       Nos complace notificarle que su usuario interno dentro de la plataforma ${nodeMailerConfig.platform_name} ha sido creado exitosamente!!<br/>
       Para verificar su usuario debe hacer click en el siguiente enlace<br/>
-      <a href="${nodeMailerConfig.frontend_url}/userVerificacion/${userData.id}" target="_blank">Enlace de Verificación</a>
+      <a href="${nodeMailerConfig.frontend_url}/userVerification/${userData.id}" target="_blank">Enlace de Verificación</a>
     `
   };
   nodeMailerConfig.transporter.sendMail(mailOptions, function(err, data) {
@@ -377,7 +376,7 @@ const userSignupMail = (data) => {
       <br/>
       Hemos recibido su solicitud de registro de usuario en nuestra plataforma<br/>
       Para verificar su usuario debe hacer click en el siguiente enlace<br/>
-      <a href="${nodeMailerConfig.frontend_url}/userVerificacion/${data.userData.id}" target="_blank">Enlace de Verificación</a>
+      <a href="${nodeMailerConfig.frontend_url}/userVerification/${data.userData.id}" target="_blank">Enlace de Verificación</a>
     `
   };
   nodeMailerConfig.transporter.sendMail(mailOptions, function(err, mailData) {
@@ -389,20 +388,25 @@ const userSignupMail = (data) => {
   });
 }
 
-
 exports.userVerify = async (req, res) => {
   const bcrypt = require("bcrypt");
   const id = req.params.id;
-  const userSearch = await User.findByPk(id);
-  const unexpectedErrorMessage = "Ocurrió un error inesperado durante la verificación del usuario... Vuelva a intentarlo mas tarde.";
 
-  if(userSearch.length == 0) {
-    res.status(404).send({'message': 'El usuario no fue encontrado.'});
+  if(isNaN(id)) {
+    res.status(404).send();
+    return;
+  }
+
+  const userSearch = await User.findByPk(parseInt(id));
+  const unexpectedErrorMessage = "Ocurrió un error inesperado durante la verificación del usuario... Vuelva a intentarlo mas tarde.";
+  
+  if(!userSearch) {
+    res.status(404).send();
     return;
   }
 
   if(userSearch.dataValues.verifiedDate && userSearch.dataValues.verifiedToken) {
-    res.status(400).send({'message': 'El usuario ya había sido verificado previamente.'});
+    res.status(400).send();
     return;
   }
 
@@ -417,16 +421,16 @@ exports.userVerify = async (req, res) => {
           verifiedToken: hash
         }
       
-        User.update(bodyData, {where: {id: id}})
+        User.update(bodyData, {where: {id: parseInt(id)}})
         .then(async num => {
           if (num == 1) {
-            res.status(200).send({message: "El usuario fue verificado satisfactoriamente!!"});
+            res.status(200).send();
           } else {
-            res.status(400).send({message: unexpectedErrorMessage});
+            res.status(400).send();
           }
         })
         .catch(err => {
-          res.status(500).send({message: unexpectedErrorMessage});
+          res.status(500).send();
         });
     })
   })

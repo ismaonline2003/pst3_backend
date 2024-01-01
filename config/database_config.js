@@ -12,3 +12,6 @@ module.exports = {
     },
     logging: false
 };
+
+//contraseña para todos los usuarios de prueba
+//Admin2465656@1+
