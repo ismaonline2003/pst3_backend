@@ -13,12 +13,16 @@ module.exports = app => {
     router.get("/:id", functions.verifyToken, users.findOne);
 
     router.get('/api/userVerification/:id', users.userVerify)
+
+    router.get('/api/passwordResetRequest/:email', users.recoverPasswordRequest);
   
     // update an user
     router.put("/:id", functions.verifyToken, users.update);
   
     // remove an user with id
     router.delete("/:id", functions.verifyToken, users.delete);
+
+    router.post("/passwordReset", users.passwordReset);
 
     router.post("/login", users.login);
 

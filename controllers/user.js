@@ -1,5 +1,6 @@
 const db = require("../models");
 const User = db.user;
+const UserRequest = db.user_request;
 const Op = db.Sequelize.Op;
 const functions = require('../routes/functions')
 const nodeMailerConfig = require('../config/nodemailer_config');
@@ -173,6 +174,7 @@ const userCreateValidations = async (data) => {
       objReturn = {status: 'failed', data: {}, msg: 'Debe seleccionar una persona para el usuario.'};
       return objReturn;
   }
+
   if(data.password.length < 12) {
       objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener un mínimo 12 caracteres.'};
       return objReturn;
@@ -213,6 +215,48 @@ const userCreateValidations = async (data) => {
     return objReturn;
   }
 
+  return objReturn;
+}
+
+
+const passwordValidations = (password, passwordRepeated) => {
+  let objReturn = {status: 'success', message: '', data: {}};
+  const specialCharactersAllowed = /[!@#$%&*?]/;
+  
+  if(password.length < 12) {
+    objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener un mínimo 12 caracteres.'};
+    return objReturn;
+  }
+
+  if(/\s/.test(password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña no puede tener espacios en blanco.'};
+      return objReturn;
+  }
+
+  if(!/[A-Z]/.test(password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe tener al menos una letra mayúscula.'};
+      return objReturn;
+  }
+
+  if(!/[a-z]/.test(password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener letras minusculas.'};
+      return objReturn;
+  }
+
+  if(!/\d/.test(password)) {
+      objReturn = {status: 'failed', data: {}, msg: 'La contraseña debe contener al menos un caracter numérico.'};
+      return objReturn;
+  }
+
+  if(!specialCharactersAllowed.test(password)) {
+      objReturn = {status: 'failed', data: {}, msg: `La contraseña debe contener al menos uno de los siguientes caracteres especiales: !@#$%&*?`};
+      return objReturn;
+  }
+
+  if(password != passwordRepeated) {
+      objReturn = {status: 'failed', data: {}, msg: `Ambas contraseñas deben ser iguales.`};
+      return objReturn;
+  }
   return objReturn;
 }
 
@@ -388,6 +432,29 @@ const userSignupMail = (data) => {
   });
 }
 
+const userResetPasswordRequest = (userData, requestID, requestHash) => {
+  const mailOptions = {
+    from: nodeMailerConfig.email,
+    to: userData.login,
+    subject: `Solicitud de Recuperación de Contraseña, ${nodeMailerConfig.platform_name}`,
+    text: `
+      Buenos dias estimado ${userData.person.name} ${userData.person.lastname}.
+      <br/>
+      <br/>
+      Hemos recibido su solicitud de recuperación de contraseña de usuario<br/>
+      Para recuperar su contraseña debe hacer click en el siguiente enlace<br/>
+      <a href="${nodeMailerConfig.frontend_url}/userPasswordResetRequest/${requestID}" target="_blank">Recuperar Contraseña</a>
+    `
+  };
+  nodeMailerConfig.transporter.sendMail(mailOptions, function(err, mailData) {
+    if (err) {
+      console.log("Error " + err);
+    } else {
+      console.log("Email sent successfully");
+    }
+  });
+}
+
 exports.userVerify = async (req, res) => {
   const bcrypt = require("bcrypt");
   const id = req.params.id;
@@ -433,8 +500,100 @@ exports.userVerify = async (req, res) => {
           res.status(500).send();
         });
     })
-  })
+  });
+}
+
+exports.recoverPasswordRequest = async (req, res) => {
+  const bcrypt = require("bcrypt");
+  const email = req.params.email;
+  const unexpectedErrorMessage = "Ocurrió un error inesperado durante la verificación del usuario... Vuelva a intentarlo mas tarde.";
+  const currentDateTime = new Date();
+
+  if(email.trim() == "") {
+    res.status(404).send();
+    return;
+  }
+
+  const userSearch = await User.findAll({where: {login: email}, include: [{model: db.person}], limit:1});
   
+  if(userSearch.length == 0) {
+    res.status(404).send();
+    return;
+  }
+
+  const resetPasswordRequestSearch = await UserRequest.findAll({where: {user_id: userSearch[0].dataValues.id, r_type: 'password_reset', request_done: false}, limit:1});
+  if(resetPasswordRequestSearch.length > 0) {
+    const timeDiff = new Date(resetPasswordRequestSearch[0].dataValues.created_at).getTime() - currentDateTime.getTime(); 
+    const hoursDiff = ((timeDiff/1000)/60)/60;
+    if(hoursDiff > 24) {
+      await UserRequest.destroy({where: { id: resetPasswordRequestSearch[0].dataValues.id }});
+    } else {
+      userResetPasswordRequest(userSearch[0].dataValues, resetPasswordRequestSearch[0].dataValues.id, resetPasswordRequestSearch[0].dataValues.request_hash);
+      res.status(400).send();
+      return;
+    }
+  }
+
+  const key = `${userSearch[0].dataValues.login}_${currentDateTime.getDay()}${currentDateTime.getMonth()+1}${currentDateTime.getFullYear()}${currentDateTime.getHours()}${currentDateTime.getMinutes()}${currentDateTime.getSeconds()}_${userSearch[0].dataValues.id}`;
+
+  bcrypt.genSalt(10, (err, salt) => {
+    bcrypt.hash(key, salt, function(err, hash) {
+      UserRequest.create({
+        user_id: userSearch[0].dataValues.id,
+        request_hash: hash,
+        r_type: 'password_reset'
+      })
+      .then((requestCreationData) => {
+        userResetPasswordRequest(userSearch[0].dataValues, requestCreationData.dataValues.id, requestCreationData.dataValues.request_hash);
+        res.status(200).send();
+      })
+      .catch((err) => {
+        res.status(500).send();
+      })
+    })
+  })
+}
+
+exports.passwordReset = async (req, res) => {
+  const bcrypt = require("bcrypt");
+  const body = req.body;
+  const currentDateTime = new Date();
+  const validations = passwordValidations(body.password, body.password_repeated);
+  if(validations.status != 'success') {
+    res.status(400).send({message: validations.msg});
+  }
+  const resetPasswordRequestSearch = await UserRequest.findAll({where: {id: body.id, r_type: 'password_reset', request_done: false}, limit:1});
+  if(resetPasswordRequestSearch.length > 0) {
+    const timeDiff = new Date(resetPasswordRequestSearch[0].dataValues.created_at).getTime() - currentDateTime.getTime(); 
+    const hoursDiff = ((timeDiff/1000)/60)/60;
+    if(hoursDiff > 24) {
+      res.status(400).send({message: "La solicitud de recuperación de contraseña ha expirado"});
+      return;
+    }
+  } else {
+    res.status(404).send();
+    return;
+  }
+
+  bcrypt.genSalt(10, (err, salt) => {
+    bcrypt.hash(body.password, salt, async function(err, hash) {
+      const userUpdate = await User.update({
+        password: hash
+      }, {where: {id: resetPasswordRequestSearch[0].dataValues.user_id}})
+
+      UserRequest.update({
+        request_done: true,
+        request_done_date: currentDateTime
+      }, {where: {id: resetPasswordRequestSearch[0].dataValues.id}})
+      .then((UserRequestUpdate) => {
+        res.status(200).send();
+      })
+      .catch((err) => {
+        res.status(500).send();
+      });
+
+    });
+  });
 }
 
 //Insert new User
