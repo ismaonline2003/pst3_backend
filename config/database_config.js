@@ -13,5 +13,6 @@ module.exports = {
     logging: false
 };
 
-//contraseña para todos los usuarios de prueba
-//Admin2465656@1+
+//contraseña para todos los usuarios de prueba}
+//email: anafernandez03@gmail.com
+//password: Admin2465656@1+

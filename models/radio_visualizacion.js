@@ -1,23 +1,20 @@
 module.exports = (sequelize, Sequelize) => {
     const functions = require('../routes/functions');
-    const RadioEspectador = sequelize.define("radio_espectador", {
+    const RadioVisualizacion = sequelize.define("radio_visualizacion", {
         activo: {
             type: Sequelize.BOOLEAN
-        },
-        username: {
-            type: Sequelize.STRING
         },
         ip: {
             type: Sequelize.STRING
         }
     }, 
     {
-      tableName: 'radio_espectador',
+      tableName: 'radio_visualizacion',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
       paranoid: true,
       timestamps: true
     });
-    return RadioEspectador;
+    return RadioVisualizacion;
 };
