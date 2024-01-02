@@ -789,7 +789,7 @@ exports.login = (req, res) => {
     const login = req.body.login;
     const password = req.body.password;
     User.findAll({
-      include: [{model: db.person}],
+      include: [{model: db.person}, {model: db.suscripcion}],
       where: {
         login: {
           [Op.eq]: login
