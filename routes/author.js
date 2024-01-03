@@ -8,11 +8,8 @@ module.exports = app => {
     router.post("/", author.create);
     
     //busqueda por codigo
-    router.get("/code/:code", author.findByCode);
+    router.get("/", author.findAll);
 
-    //busqueda por nombre
-    router.get("/name/:name", author.findByName);
-  
     //busqueda por id
     router.get("/:id", author.findOne);
   
@@ -22,6 +19,6 @@ module.exports = app => {
     //eliminación
     router.delete("/:id", author.delete);
   
-    app.use('/api/author', functions.verifyToken, router);
+    app.use('/api/autor', functions.verifyToken, router);
 };
   

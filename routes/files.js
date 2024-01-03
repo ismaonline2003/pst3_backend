@@ -5,5 +5,8 @@ module.exports = app => {
     
     router.get("/getFile/:fileName", files.getFile);
 
+    router.get("/getEmisionAudio/:fileName", files.getEmisionAudio);
+
     app.use('/api/files', router);
+
 };
