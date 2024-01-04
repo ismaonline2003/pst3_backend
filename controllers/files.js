@@ -10,8 +10,7 @@ exports.getFile = (req, res) => {
     }
 };
 
-exports.getEmisionAudio = (req, res) => {
-    const filePath = path.resolve(`src/radioEmisions/${req.params.fileName}`);
+const emitAudio = (req, res, filePath) => {
     if (fs.existsSync(filePath)) {
         const range = req.headers.range;
         const CHUNK_SIZE = 10 ** 6; // 1MB
@@ -31,4 +30,14 @@ exports.getEmisionAudio = (req, res) => {
     } else {
         res.status(404).send({message: "El recurso solicitado no fue encontrado"});
     }
+}
+
+exports.getEmisionAudio = (req, res) => {
+    const filePath = path.resolve(`src/radioEmisions/${req.params.fileName}`);
+    return emitAudio(req, res, filePath);
 };
+
+exports.getRadioAudio = (req, res) => {
+    const filePath = path.resolve(`src/radioAudios/${req.params.fileName}`);
+    return emitAudio(req, res, filePath);
+}
