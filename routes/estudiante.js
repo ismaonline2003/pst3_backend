@@ -3,7 +3,7 @@ module.exports = app => {
     const functions = require('./functions');
     const estudiante = require("../controllers/estudiante.js");
     var router = require("express").Router();
-    const upload = multer({ dest: 'src/fileUploads' })
+    const upload = multer({ dest: 'src/fileUploads' });
     
     router.post("/",  upload.single('foto_carnet'), estudiante.create);
     

@@ -18,7 +18,7 @@ module.exports = (sequelize, Sequelize, Author) => {
         yt_url: {
             type: Sequelize.STRING
         },
-        filepath: {
+        filename: {
             type: Sequelize.STRING
         }
     }, 

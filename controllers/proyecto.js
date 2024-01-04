@@ -50,7 +50,6 @@ const generalValidations = async (data, integrantesAdded) =>  {
   return objReturn;
 }
 
-
 const recordCreateValidations = async (data) =>  {
   let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
   let general_validations = await generalValidations(data, data.integrantes);
@@ -72,20 +71,6 @@ const recordUpdateValidations = async (data) => {
 const searchPNFByName = async (value) => {
     let search = await CarreraUniversitaria.findAll({where: {nombre: {[Op.like]: `%${value}%`}}});
     return search;
-}
-
-const getTurnoName = (turno) => {
-    let turnoName = "";
-    if(turno == 1) {
-        turnoName = "Mañana";
-    }
-    if(turno == 2) {
-        turnoName = "Tarde";
-    }
-    if(turno == 3) {
-        turnoName = "Noche";
-    }
-    return turnoName;
 }
 
 const createIntegrantes = async (proyectoId, seccionId, integrantesData, t) => {
@@ -365,7 +350,6 @@ exports.findAll = async (req, res) => {
             }
         }
     }
-    console.log(condition);
     let searchConfig = {include: [{model: Seccion}], limit:limit};
     if(!['seccion', 'trayecto', 'pnf'].includes(parameter)) {
         searchConfig['where'] = condition;

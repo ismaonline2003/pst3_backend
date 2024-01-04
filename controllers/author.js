@@ -1,4 +1,5 @@
 const db = require("../models");
+const functions = require('../routes/functions');
 const Author = db.author;
 const Op = db.Sequelize.Op;
 
@@ -9,6 +10,7 @@ exports.create = (req, res) => {
 
   Author.create(newAuthor)
     .then(data => {
+      functions.createActionLogMessage(db, "Autor", req.headers.authorization, data.dataValues.id);
       res.send(data);
     }).catch(err => {
       res.status(500).send({
@@ -23,9 +25,7 @@ exports.findAll = (req, res) => {
   const limit = req.query.limit;
   var condition = {};
   if(parameter == 'name') {
-    if(!isNaN(value)) {
       condition = {name: {[Op.like]: `%${value}%`}};
-    }
   }
   if(parameter == 'ref') {
     if(!isNaN(value)) {
@@ -67,6 +67,7 @@ exports.update = (req, res) => {
   Author.update(req.body, {where: { id: id }})
   .then(num => {
       if (num == 1) {
+        functions.updateActionLogMessage(db, "Autor", req.headers.authorization, id);
         res.send({
           message: "Autor actualizado exitosamente!!"
         });
@@ -91,6 +92,7 @@ exports.delete = (req, res) => {
   })
     .then(num => {
       if (num == 1) {
+        functions.deleteActionLogMessage(db, "Autor", req.headers.authorization, id);
         res.send({
           message: "El autor fue eliminado exitosamente!!"
         });
