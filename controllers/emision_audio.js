@@ -35,6 +35,24 @@ exports.create = async (req, res) => {
     });
 };
 
+const searchAudiosIdsByName = async(value) => {
+  let ids_list = [];
+  let recordsSearch = await db.sequelize.query(`
+    SELECT 
+      radio_audio.id AS id
+    FROM radio_audio 
+    INNER JOIN author ON author.id = radio_audio.id_autor
+    WHERE CONCAT(author.name,' - ', radio_audio.title) LIKE '%${value}%'
+    AND radio_audio.deleted_at IS NULL
+  `);
+  if(recordsSearch.length > 0) {
+      for(let i = 0; i < recordsSearch[0].length; i++) {
+          ids_list.push(recordsSearch[0][i].id);
+      }
+  }
+  return ids_list;
+}
+
 exports.findAll = async (req, res) => {
     const parameter = req.query.parameter;
     const value = req.query.value;
@@ -48,15 +66,16 @@ exports.findAll = async (req, res) => {
         if(parameter == 'ref') {
             condition = {id: {[Op.eq]: value}};
         }
-        if(parameter == 'nombre') {
-            condition = {nombre: {[Op.like]: `%${value}%`}};
+        if(parameter == 'audio') {
+            const audioIds = await searchAudiosIdsByName(value);
+            condition = {id_audio: {[Op.in]: audioIds}};
         }
-        if(parameter == 'fecha_emision_programada') {
-            condition = {descripcion: {[Op.like]: `%${value}%`}};
+        if(parameter == 'fecha') {
+          condition = {fecha_emision_programada: {[Op.like]: `%${value}%`}};
         }
     }
 
-    let searchConfig = {where: condition, limit:limit};
+    let searchConfig = {where: condition, limit:limit, include: [{model: db.radio_audio, include: [{model: db.author }]}]};
 
     EmisionAudio.findAll(searchConfig)
     .then((data) => {
