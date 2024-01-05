@@ -110,4 +110,26 @@ cron.schedule('*/4 * * * * *', () => {
   WSController.sendAudioStreamToClients(io);
 });
 
+cron.schedule('*/4 * * * * *', async() => {
+  const audiosToCheckPath = './src/radioAudiosToCheck/';
+  const getMP3Duration = require('get-mp3-duration');
+  const fs = require('fs');
+  const filesList = fs.readdirSync(audiosToCheckPath);
+  for(let i = 0; i < filesList.length; i++) {
+    try {
+      const audioSearch = await db.radio_audio.findAll({where: {filename: filesList[i]}, limit: 1});
+      if(audioSearch.length > 0) {
+        const filePath = `${audiosToCheckPath}/${audioSearch[0].dataValues.filename}`;
+        const buffer = fs.readFileSync(filePath);
+        const duration = getMP3Duration(buffer);
+        const response = await db.radio_audio.update({seconds_duration: duration/1000}, {where: {id: audioSearch[0].dataValues.id}})
+        fs.unlinkSync(filePath);
+        console.log(response);
+      }
+    } catch(err) {
+      console.log(err);
+    }
+  }
+});
+
 

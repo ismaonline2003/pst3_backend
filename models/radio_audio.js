@@ -20,7 +20,10 @@ module.exports = (sequelize, Sequelize, Author) => {
         },
         filename: {
             type: Sequelize.STRING
-        }
+        },
+        seconds_duration: {
+            type: Sequelize.INTEGER
+        },
     }, 
     {
       tableName: 'radio_audio',

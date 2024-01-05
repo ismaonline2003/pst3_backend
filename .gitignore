@@ -3,6 +3,7 @@
 /src/fileUploads
 /src/radioAudios
 /src/radioEmisions
+/src/radioAudiosToCheck
 # dependencies
 /node_modules
 /.pnp

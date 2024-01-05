@@ -2,10 +2,12 @@ const fs = require('fs');
 const ffmepg = require('ffmpeg-static');
 const childProcess = require('child_process');
 const ytdl = require('ytdl-core');
+const getMP3Duration = require('get-mp3-duration');
 const db = require("../models");
 const functions = require('../routes/functions');
 const RadioAudio = db.radio_audio;
 const Op = db.Sequelize.Op;
+const fs_radioAudios_path = `./src/radioAudios`;
 const childProcess_radioAudiosFilePath = `${process.cwd()}/src/radioAudios`;
 
 
@@ -77,7 +79,7 @@ const ytFileSearch = async(url) =>  {
         
         await child.on('close', (code) => {
             if (code === 0) {
-                console.log('FFMPEG mp4 to mp3 conversion success!!!');
+                fs.copyFileSync(`./src/radioAudios/${filename}`, `./src/radioAudiosToCheck/${filename}`);
                 fs.unlinkSync(DownloadOutputFilePath);
             } else {
                 console.log(`FFmpeg encountered an error, check the console output`);
