@@ -106,10 +106,17 @@ const WSController = new WSControllerClass();
 io.on('connection', WSController.connection);
 
 //*cron jobs*//
+
+//send live radio audios
 cron.schedule('*/4 * * * * *', () => {
   WSController.sendAudioStreamToClients(io);
 });
 
+cron.schedule('*/4 * * * * *', () => {
+  WSController.sendScheduledAudioToClients(io);
+});
+
+//set emision radio audios duration
 cron.schedule('*/4 * * * * *', async() => {
   const audiosToCheckPath = './src/radioAudiosToCheck/';
   const getMP3Duration = require('get-mp3-duration');
@@ -124,12 +131,147 @@ cron.schedule('*/4 * * * * *', async() => {
         const duration = getMP3Duration(buffer);
         const response = await db.radio_audio.update({seconds_duration: duration/1000}, {where: {id: audioSearch[0].dataValues.id}})
         fs.unlinkSync(filePath);
-        console.log(response);
       }
     } catch(err) {
       console.log(err);
     }
   }
 });
+
+cron.schedule('*/4 * * * * *', async() => {
+  /*
+  const fs = require('fs');
+  const moment = require('moment');
+  const ffmepg = require('ffmpeg-static');
+  const childProcess = require('child_process');
+  const radioAudioPiecesPath = './src/current_emision/current_emision_radio_audio_pieces';
+  const childProcess_radioAudios_path = `${process.cwd()}/src/radioAudios`;
+  const childProcess_currentEmisionRadioAudio_path = `${process.cwd()}/src/current_emision/current_emision_radio_audio_pieces`;
+  const Op = db.Sequelize.Op;
+  const currentDate = new Date();
+  try {
+    const search = await db.emision_audio.findAll({
+      where: {fecha_emision_programada: {[Op.lte]: currentDate}, fecha_fin_emision_programada: {[Op.gte]: currentDate}, taken: false}, 
+      limit: 1,
+      order: [['fecha_emision_programada', 'ASC']],
+      include: [{model: db.radio_audio}]
+    });
+    if(search.length > 0) {
+      fs.rmSync(radioAudioPiecesPath, { recursive: true, force: true });
+      fs.mkdirSync(radioAudioPiecesPath);
+        const child = childProcess.spawn(
+          ffmepg,
+          // note, args must be an array when using spawn
+          [
+              '-i',
+              `${childProcess_radioAudios_path}/${search[0].dataValues.radio_audio.filename}`,
+              '-f',
+              `segment`,
+              '-segment_time',
+              '4',
+              '-c',
+              'copy',
+              `${childProcess_currentEmisionRadioAudio_path}/out%03d.mp3`
+          ]
+        );
+        await child.on('error', () => {
+            // catches execution error (bad file)
+            console.log(`Error executing binary: ${ffmpegPath}`);
+        });
+        
+        await child.stdout.on('data', (data) => {
+            console.log('FFmpeg stdout', data.toString());
+        });
+        
+        await child.stderr.on('data', (data) => {
+            console.log(data);
+        });
+        
+        await child.on('close', async (code) => {
+            if (code === 0) {
+              await db.emision_audio.update({taken: true}, {where: {id: search[0].dataValues.id}});
+            } else {
+                console.log(`FFmpeg encountered an error, check the console output`);
+            }
+        });
+    }
+  } catch(err) {
+    console.log(err);
+  }
+  */
+});
+
+cron.schedule('*/4 * * * * *', async() => {
+  const fs = require('fs');
+  const ffmepg = require('ffmpeg-static');
+  const childProcess = require('child_process');
+  const radioAudioPiecesPath = './src/current_emision/current_emision_radio_audio_pieces';
+  const childProcess_radioAudios_path = `${process.cwd()}/src/radioAudios`;
+  const childProcess_currentEmisionRadioAudio_path = `${process.cwd()}/src/current_emision/current_emision_radio_audio_pieces`;
+  const Op = db.Sequelize.Op;
+  const currentDate = new Date();
+
+  try {
+    const search = await db.emision_audio.findAll({
+      where: {fecha_emision_programada: {[Op.lte]: currentDate}, fecha_fin_emision_programada: {[Op.gte]: currentDate}, taken: false}, 
+      limit: 1,
+      order: [['fecha_emision_programada', 'ASC']],
+      include: [{model: db.radio_audio}]
+    });
+
+    if(search.length > 0) {
+      let directoryPath = radioAudioPiecesPath;
+      const emisionAudioFilesList = fs.readdirSync(radioAudioPiecesPath);
+      if(emisionAudioFilesList.length > 0) {
+        directoryPath = `${radioAudioPiecesPath}/${emisionAudioFilesList[0]}`;
+        fs.unlinkSync(directoryPath);
+      }
+      const diff = new Date(search[0].dataValues.fecha_fin_emision_programada).getTime() - currentDate.getTime();
+      const secondsDiff = (diff / 1000) - 4; //el -4 es el tiempo que se deja entre cada emisión
+      const AudioStartPoint = search[0].dataValues.radio_audio.seconds_duration - secondsDiff;
+      if(AudioStartPoint > 0) {
+        const child = childProcess.spawn(
+          ffmepg,
+          // note, args must be an array when using spawn
+          [
+              '-ss',
+              AudioStartPoint,
+              '-i',
+              `${childProcess_radioAudios_path}/${search[0].dataValues.radio_audio.filename}`,
+              '-c',
+              'copy',
+              `${childProcess_currentEmisionRadioAudio_path}/${currentDate.getTime()}.mp3`
+          ]
+        );
+        await child.on('error', () => {
+            // catches execution error (bad file)
+            console.log(`Error executing binary: ${ffmpegPath}`);
+        });
+        
+        await child.stdout.on('data', (data) => {
+            console.log('FFmpeg stdout', data.toString());
+        });
+        
+        await child.stderr.on('data', (data) => {
+            console.log('**** ERROR ***');
+            console.log(data);
+        });
+        
+        await child.on('close', async (code) => {
+            if (code === 0) {
+              await db.emision_audio.update({taken: true}, {where: {id: search[0].dataValues.id}});
+            } else {
+                console.log(`FFmpeg encountered an error, check the console output`);
+            }
+        });
+      } else {
+        await db.emision_audio.update({taken: true}, {where: {id: search[0].dataValues.id}});
+      }
+    }
+  } catch(err) {
+    console.log(err);
+  }
+});
+
 
 

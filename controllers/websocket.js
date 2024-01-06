@@ -10,6 +10,7 @@ const fs_currentAudioFile = `./src/current_emision/current_audio.mp3`;
 const fs_outputAudioFile = `./src/current_emision/output_audio.mp3`;
 const fs_audioPieces = `./src/current_emision/pieces`;
 const fs_latestAudioPieces = `./src/current_emision/latest_pieces`;
+const fs_radioAudioEmisionPieces = `./src/current_emision/current_emision_radio_audio_pieces`
 
 const { Readable } = require('stream');
 class WSController {
@@ -31,13 +32,27 @@ class WSController {
     sendAudioStreamToClients = (io) => {
         let filesList = fs.readdirSync(fs_latestAudioPieces);
         if(filesList.length > 0) {
+            io.sockets.emit('radioAudio', {'file': filesList[0]});
+            /*
             let filePath = `${fs_latestAudioPieces}/${filesList[0]}`;
             let read = fs.readFileSync(filePath);
-            io.sockets.emit('radioAudio', {'file': read});
+            io.sockets.emit('radioAudio', {'file':read});
             fs.copyFileSync(filePath,  `${fs_audioPieces}/${filesList[0]}`);
             fs.unlinkSync(filePath);
+            */
         }
     }
+    sendScheduledAudioToClients = (io) => {
+        if (fs.existsSync(fs_radioAudioEmisionPieces)) { 
+            let emisionAudioFilesList = fs.readdirSync(fs_radioAudioEmisionPieces);
+            if(emisionAudioFilesList.length > 0) {
+                io.sockets.emit('emisionScheduledAudio', {'radio_audio': true});
+                return true;
+            }
+        }
+        io.sockets.emit('emisionScheduledAudio', {'radio_audio': false});
+        return false;
+     }
     _sliceAudio = async() => {
         const self = this;
         // spawn an ffmpeg process

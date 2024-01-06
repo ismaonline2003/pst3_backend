@@ -48,17 +48,34 @@ exports.findOne = async (req, res) => {
 }
 
 exports.getCurrent = async (req, res) => {
-    const searchEmision = await Emision.findAll({
-        where: {status_actual: "en_emision"}, 
-        order: [['fecha_inicio', 'DESC']],
-        limit: 1,
-        include: [{model: db.radio_espectador_mensaje}]
-    })
-    if(searchEmision.length > 0) {
-        res.send(data);
-    }
-    if(searchEmision.length == 0) {
-        res.send([]);
+    try {
+        let resData = {radio_emision: false, emision_audio: false}
+        const currentDate = new Date();
+        const searchEmision = await Emision.findAll({
+            where: {status_actual: "en_emision"}, 
+            order: [['fecha_inicio', 'DESC']],
+            limit: 1,
+            include: [{model: db.radio_espectador_mensaje}]
+        })
+        const searchEmisionAudio = await db.emision_audio.findAll({
+            where: {fecha_emision_programada: {[Op.lte]: currentDate}, fecha_fin_emision_programada: {[Op.gte]: currentDate}, taken: true}, 
+            limit: 1,
+            order: [['fecha_emision_programada', 'ASC']],
+            include: [{model: db.radio_audio, include: [{model: db.author}]}]
+        });
+        if(searchEmision.length > 0) {
+            resData.radio_emision = searchEmision[0].dataValues;
+        }
+        if(searchEmisionAudio.length > 0) {
+            const diff = new Date(searchEmisionAudio[0].dataValues.fecha_fin_emision_programada).getTime() - currentDate.getTime();
+            const secondsDiff = (diff / 1000) - 4; //el -4 es el tiempo que se deja entre cada emisión
+            const AudioStartPoint = searchEmisionAudio[0].dataValues.radio_audio.seconds_duration - secondsDiff;
+            searchEmisionAudio[0].dataValues.audio_played_current_time = AudioStartPoint; 
+            resData.emision_audio = searchEmisionAudio[0].dataValues;
+        }
+        res.send(resData);
+    } catch(err) {
+        res.status(400).send({message: "Ha Ocurrido un error inesperado... Vuelva a intentarlo mas tarde."});
     }
 };
 

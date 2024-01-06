@@ -9,6 +9,10 @@ module.exports = app => {
 
     router.get("/getRadioAudio/:fileName", files.getRadioAudio);
 
+    router.get("/getCurrentEmisionAudio/:fileName", files.getCurrentEmisionAudio);
+
+    router.get("/currentScheduledRadioAudio", files.getCurrentScheduledRadioAudio);
+
     app.use('/api/files', router);
 
 };

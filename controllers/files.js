@@ -41,3 +41,20 @@ exports.getRadioAudio = (req, res) => {
     const filePath = path.resolve(`src/radioAudios/${req.params.fileName}`);
     return emitAudio(req, res, filePath);
 }
+
+exports.getCurrentEmisionAudio = (req, res) => {
+    const filePath = path.resolve(`src/current_emision/latest_pieces/${req.params.fileName}`);
+    return emitAudio(req, res, filePath);
+}
+
+exports.getCurrentScheduledRadioAudio = (req, res) => {
+    const fs_radioAudioEmisionPieces = `./src/current_emision/current_emision_radio_audio_pieces`;
+    if (fs.existsSync(fs_radioAudioEmisionPieces)) { 
+        let emisionAudioFilesList = fs.readdirSync(fs_radioAudioEmisionPieces);
+        if(emisionAudioFilesList.length > 0) {
+            const filePath = path.resolve(`${fs_radioAudioEmisionPieces}/${emisionAudioFilesList[0]}`);
+            return emitAudio(req, res, filePath);
+        }
+    }
+    res.status(404).send({message: "El recurso solicitado no fue encontrado"});
+}

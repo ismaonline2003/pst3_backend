@@ -74,6 +74,12 @@ exports.create = async (req, res) => {
     try {
       for(let i = 0; i < bodyData.length; i++) {
         const recordBody = bodyData[i];
+        const recordFechaEmisionProgramada = new Date(recordBody.fecha_emision_programada);
+        const fechaEmisionFormat = moment(recordFechaEmisionProgramada).format('YYYY-MM-DD HH:mm:ss');
+        const recordFinishDate = new Date(recordBody.fecha_fin_emision_programada);
+        const finishDateFormat = moment(recordFinishDate).format('YYYY-MM-DD HH:mm:ss');
+        recordBody.fecha_emision_programada = fechaEmisionFormat;
+        recordBody.fecha_fin_emision_programada = finishDateFormat;
         const createRecord = await EmisionAudio.create(recordBody);
         const searchRecord = await EmisionAudio.findOne({where: {id: createRecord.dataValues.id}});
       }
