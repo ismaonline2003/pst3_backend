@@ -6,6 +6,9 @@ module.exports = (sequelize, Sequelize, AudioModel) => {
         },
         fecha_emision_programada: {
             type: Sequelize.DATE
+        },
+        fecha_fin_emision_programada: {
+            type: Sequelize.DATE
         }
     }, 
     {

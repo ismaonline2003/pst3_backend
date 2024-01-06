@@ -11,7 +11,7 @@ module.exports = app => {
   
     router.put("/:id", emision_audio.update);
   
-    router.delete("/:id", emision_audio.delete);
+    router.post("/api/delete", emision_audio.delete);
   
     app.use('/api/emision_audio', functions.verifyToken, router);
 };

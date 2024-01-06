@@ -1,13 +1,60 @@
+const moment = require('moment');
 const db = require("../models");
 const functions = require('../routes/functions');
 const EmisionAudio = db.emision_audio;
 const Op = db.Sequelize.Op;
 
-const recordValidations = (data) =>  {
+const recordsValidations = async(records) =>  {
   let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
-  if(data.nombre.trim() == "") {
-      objReturn = {'status': 'failed', 'data': {}, 'msg': 'Se debe definir un nombre para la categoría de noticia.'};
+  const currentDate = new Date();
+  for(let i = 0; i < records.length; i++) {
+    const recordFechaEmisionProgramada = new Date(records[i].fecha_emision_programada);
+    const fechaEmisionFormat = moment(recordFechaEmisionProgramada).format('YYYY-MM-DD HH:mm:ss');
+    const recordFinishDate = new Date(records[i].fecha_fin_emision_programada);
+    const finishDateFormat = moment(recordFinishDate).format('YYYY-MM-DD HH:mm:ss');
+
+
+    if(recordFechaEmisionProgramada < currentDate) {
+      objReturn = {status: 'error', data: {}, msg: 'Las fechas de los registros deben ser menor o igual a la fecha actual.'};
       return objReturn;
+    }
+
+    const inTimeRangeEmisionsSearch = await db.sequelize.query(`
+      SELECT id 
+      FROM emision_audio 
+      WHERE fecha_emision_programada BETWEEN '${fechaEmisionFormat}' AND '${fechaEmisionFormat}' 
+      AND deleted_at IS NULL
+      LIMIT 1
+    `);
+
+    const inTimeRangeEmisionsSearch2 = await db.sequelize.query(`
+      SELECT id 
+      FROM emision_audio 
+      WHERE fecha_emision_programada BETWEEN '${finishDateFormat}' AND '${finishDateFormat}' 
+      AND deleted_at IS NULL
+      LIMIT 1
+    `);
+
+    if(inTimeRangeEmisionsSearch[0].length > 0) {
+      objReturn = {status: 'error', data: {}, msg: 'Los audios no pueden coincidir en su programación. La programación de cada audio debe tener una separación de al menos 5 segundos (considerando la duración del audio).'};
+      return objReturn;
+    }
+
+    if(inTimeRangeEmisionsSearch2[0].length > 0) {
+      objReturn = {status: 'error', data: {}, msg: 'Los audios no pueden coincidir en su programación. La programación de cada audio debe tener una separación de al menos 5 segundos (considerando la duración del audio).'};
+      return objReturn;
+    }
+
+    for(let a = 0; a < records.length; a++) {
+        if(records[a].id != records[i].id) {
+            let date1 = new Date(records[a].fecha_emision_programada);
+            let date2 = new Date(records[a].fecha_fin_emision_programada);
+            if(recordFechaEmisionProgramada >= date1 && recordFechaEmisionProgramada <= date2) {
+                objReturn = {status: 'error', data: {}, msg: 'Los audios no pueden coincidir en su programación. La programación de cada audio debe tener una separación de al menos 5 segundos (considerando la duración del audio).'};
+                return objReturn;
+            }
+        }
+    }
   }
   return objReturn;
 }
@@ -15,24 +62,27 @@ const recordValidations = (data) =>  {
 
 exports.create = async (req, res) => {
     const bodyData = req.body;
-    const validations= recordValidations(bodyData);
     const errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
+    const validations= await recordsValidations(bodyData);
+    let bodyRes = [];
 
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
+      return;
     }
-
-    EmisionAudio.create({
-      nombre: bodyData.nombre,
-      descripcion: bodyData.descripcion
-    })
-    .then(recordRes => {
-        bodyData.id = recordRes.dataValues.id;
-        functions.createActionLogMessage(db, "Audio de Emisión", req.headers.authorization, bodyData.id);
-        res.status(200).send(bodyData);
-    }).catch(err => {
+    
+    try {
+      for(let i = 0; i < bodyData.length; i++) {
+        const recordBody = bodyData[i];
+        const createRecord = await EmisionAudio.create(recordBody);
+        const searchRecord = await EmisionAudio.findOne({where: {id: createRecord.dataValues.id}});
+      }
+    } catch(err) {
       res.status(500).send({message: errorMessage});
-    });
+      return;
+    }
+    res.status(200).send(bodyData);
+    return;
 };
 
 const searchAudiosIdsByName = async(value) => {
@@ -75,7 +125,7 @@ exports.findAll = async (req, res) => {
         }
     }
 
-    let searchConfig = {where: condition, limit:limit, include: [{model: db.radio_audio, include: [{model: db.author }]}]};
+    let searchConfig = {where: condition, limit:limit, include: [{model: db.radio_audio, include: [{model: db.author }]}], order: [['fecha_emision_programada', 'DESC']]};
 
     EmisionAudio.findAll(searchConfig)
     .then((data) => {
@@ -124,28 +174,17 @@ exports.update = async (req, res) => {
     });
 };
 
-exports.delete = (req, res) => {
-    const id = req.params.id;
-    EmisionAudio.destroy({
-      where: { id: id },
-      individualHooks: true
-    })
-    .then(num => {
-        if (num == 1) {
-          functions.deleteActionLogMessage(db, "Audio de Emisión", req.headers.authorization, id);
-          res.send({
-            message: "El registro fue eliminado exitosamente!!"
-          });
-        } else {
-          res.send({
-            message: `No se pudo eliminar el registro.`
-          });
-        }
-    })
-    .catch(err => {
-      console.log(err);
-      res.status(500).send({
-        message: "No se pudo eliminar el registro"
-      });
-    });
+exports.delete = async(req, res) => {
+    const bodyData = req.body;
+    const errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
+    try {
+      for(let i = 0; i < bodyData.length; i++) {
+        const deleteRecord = await EmisionAudio.destroy({ where: {id: bodyData[i].id} });
+      }
+    } catch(err) {
+      res.status(500).send({message: errorMessage});
+      return;
+    }
+    res.status(200).send(bodyData);
+    return;
 };
