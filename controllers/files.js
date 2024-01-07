@@ -43,7 +43,7 @@ exports.getRadioAudio = (req, res) => {
 }
 
 exports.getCurrentEmisionAudio = (req, res) => {
-    const filePath = path.resolve(`src/current_emision/latest_pieces/${req.params.fileName}`);
+    const filePath = path.resolve(`src/current_emision/pieces/${req.params.fileName}`);
     return emitAudio(req, res, filePath);
 }
 
@@ -52,7 +52,7 @@ exports.getCurrentScheduledRadioAudio = (req, res) => {
     if (fs.existsSync(fs_radioAudioEmisionPieces)) { 
         let emisionAudioFilesList = fs.readdirSync(fs_radioAudioEmisionPieces);
         if(emisionAudioFilesList.length > 0) {
-            const filePath = path.resolve(`${fs_radioAudioEmisionPieces}/${emisionAudioFilesList[0]}`);
+            const filePath = path.resolve(`${fs_radioAudioEmisionPieces}/${emisionAudioFilesList[emisionAudioFilesList.length-1]}`);
             return emitAudio(req, res, filePath);
         }
     }

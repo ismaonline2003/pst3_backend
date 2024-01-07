@@ -201,6 +201,7 @@ cron.schedule('*/4 * * * * *', async() => {
   */
 });
 
+//cron para guardar los archivos por emitir en current_emision_radio_audio_pieces
 cron.schedule('*/4 * * * * *', async() => {
   const fs = require('fs');
   const ffmepg = require('ffmpeg-static');
@@ -218,28 +219,21 @@ cron.schedule('*/4 * * * * *', async() => {
       order: [['fecha_emision_programada', 'ASC']],
       include: [{model: db.radio_audio}]
     });
-
+    console.log(search);
     if(search.length > 0) {
-      let directoryPath = radioAudioPiecesPath;
-      const emisionAudioFilesList = fs.readdirSync(radioAudioPiecesPath);
-      if(emisionAudioFilesList.length > 0) {
-        directoryPath = `${radioAudioPiecesPath}/${emisionAudioFilesList[0]}`;
-        fs.unlinkSync(directoryPath);
-      }
       const diff = new Date(search[0].dataValues.fecha_fin_emision_programada).getTime() - currentDate.getTime();
       const secondsDiff = (diff / 1000) - 4; //el -4 es el tiempo que se deja entre cada emisión
       const AudioStartPoint = search[0].dataValues.radio_audio.seconds_duration - secondsDiff;
       if(AudioStartPoint > 0) {
+        console.log('search[0].dataValues.audio_volume', search[0].dataValues.audio_volume);
         const child = childProcess.spawn(
           ffmepg,
           // note, args must be an array when using spawn
           [
-              '-ss',
-              AudioStartPoint,
               '-i',
               `${childProcess_radioAudios_path}/${search[0].dataValues.radio_audio.filename}`,
-              '-c',
-              'copy',
+              '-filter:a',
+              `volume=${search[0].dataValues.audio_volume}`,
               `${childProcess_currentEmisionRadioAudio_path}/${currentDate.getTime()}.mp3`
           ]
         );
@@ -252,9 +246,10 @@ cron.schedule('*/4 * * * * *', async() => {
             console.log('FFmpeg stdout', data.toString());
         });
         
-        await child.stderr.on('data', (data) => {
+        await child.stderr.on('data', async(data) => {
             console.log('**** ERROR ***');
             console.log(data);
+            await db.emision_audio.update({taken: true}, {where: {id: search[0].dataValues.id}});
         });
         
         await child.on('close', async (code) => {
@@ -266,6 +261,32 @@ cron.schedule('*/4 * * * * *', async() => {
         });
       } else {
         await db.emision_audio.update({taken: true}, {where: {id: search[0].dataValues.id}});
+      }
+    }
+  } catch(err) {
+    console.log(err);
+  }
+});
+
+//cron para eliminar los archivos que quedan en current_emision_radio_audio_pieces
+cron.schedule('*/4 * * * * *', async() => {
+  const fs = require('fs');
+  const radioAudioPiecesPath = './src/current_emision/current_emision_radio_audio_pieces';
+  const Op = db.Sequelize.Op;
+  const currentDate = new Date();
+  try {
+    const search = await db.emision_audio.findAll({
+      where: {fecha_fin_emision_programada: {[Op.lte]: currentDate}, taken: true, finished: false}, 
+      limit: 1,
+      order: [['fecha_fin_emision_programada', 'DESC']],
+      include: [{model: db.radio_audio}]
+    });
+    if(search.length > 0) {
+      await db.emision_audio.update({finished: true}, {where: {id: search[0].dataValues.id}});
+      const emisionAudioFilesList = fs.readdirSync(radioAudioPiecesPath);
+      if(emisionAudioFilesList.length > 0) {
+        const directoryPath = `${radioAudioPiecesPath}/${emisionAudioFilesList[0]}`;
+        fs.unlinkSync(directoryPath);
       }
     }
   } catch(err) {

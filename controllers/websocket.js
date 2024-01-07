@@ -2,7 +2,8 @@ const db = require("../models");
 const fs = require('fs');
 const ffmepg = require('ffmpeg-static');
 const childProcess = require('child_process');
-const cron = require('node-cron')
+const cron = require('node-cron');
+const Op = db.Sequelize.Op;
 const childProcess_currentAudioFile = `${process.cwd()}/src/current_emision/current_audio.mp3`;
 const childProcess_outputAudioFile = `${process.cwd()}/src/current_emision/output_audio.mp3`;
 
@@ -32,26 +33,34 @@ class WSController {
     sendAudioStreamToClients = (io) => {
         let filesList = fs.readdirSync(fs_latestAudioPieces);
         if(filesList.length > 0) {
-            io.sockets.emit('radioAudio', {'file': filesList[0]});
-            /*
             let filePath = `${fs_latestAudioPieces}/${filesList[0]}`;
-            let read = fs.readFileSync(filePath);
-            io.sockets.emit('radioAudio', {'file':read});
+            //let read = fs.readFileSync(filePath);
+            io.sockets.emit('radioAudio', {'filename': filesList[0]});
             fs.copyFileSync(filePath,  `${fs_audioPieces}/${filesList[0]}`);
             fs.unlinkSync(filePath);
-            */
         }
     }
-    sendScheduledAudioToClients = (io) => {
-        if (fs.existsSync(fs_radioAudioEmisionPieces)) { 
-            let emisionAudioFilesList = fs.readdirSync(fs_radioAudioEmisionPieces);
-            if(emisionAudioFilesList.length > 0) {
-                io.sockets.emit('emisionScheduledAudio', {'radio_audio': true});
+    sendScheduledAudioToClients = async (io) => {
+        try {
+            const currentDate = new Date();
+            const search = await db.emision_audio.findAll({
+                where: {fecha_emision_programada: {[Op.lte]: currentDate}, fecha_fin_emision_programada: {[Op.gte]: currentDate}, taken: true}, 
+                limit: 1,
+                order: [['fecha_emision_programada', 'ASC']],
+                include: [{model: db.radio_audio, include: [{model: db.author}]}]
+            });
+            if(search.length > 0) {
+                const targetPath = `${fs_radioAudioEmisionPieces}/${search[0].dataValues.radio_audio.filename}`;
+                const diff = new Date(search[0].dataValues.fecha_fin_emision_programada).getTime() - currentDate.getTime();
+                const secondsDiff = (diff / 1000) - 4; //el -4 es el tiempo que se deja entre cada emisión
+                const AudioStartPoint = search[0].dataValues.radio_audio.seconds_duration - secondsDiff;
+                search[0].dataValues.audio_played_current_time = AudioStartPoint; 
+                io.sockets.emit('emisionScheduledAudio', {'radio_audio': true, 'audio_data': search[0].dataValues});
                 return true;
             }
+        } catch(err) {
+            console.log("*ERRROR **", err);
         }
-        io.sockets.emit('emisionScheduledAudio', {'radio_audio': false});
-        return false;
      }
     _sliceAudio = async() => {
         const self = this;

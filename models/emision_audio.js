@@ -10,7 +10,15 @@ module.exports = (sequelize, Sequelize, AudioModel) => {
         fecha_fin_emision_programada: {
             type: Sequelize.DATE
         },
+        audio_volume: {
+            type: Sequelize.FLOAT,
+            defaultValue: 1
+        },
         taken: {
+            type: Sequelize.BOOLEAN,
+            defaultValue: false
+        },
+        finished: {
             type: Sequelize.BOOLEAN,
             defaultValue: false
         }
