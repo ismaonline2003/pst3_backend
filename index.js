@@ -270,6 +270,7 @@ cron.schedule('*/4 * * * * *', async() => {
 
 //cron para eliminar los archivos que quedan en current_emision_radio_audio_pieces
 cron.schedule('*/4 * * * * *', async() => {
+  /*
   const fs = require('fs');
   const radioAudioPiecesPath = './src/current_emision/current_emision_radio_audio_pieces';
   const Op = db.Sequelize.Op;
@@ -292,6 +293,7 @@ cron.schedule('*/4 * * * * *', async() => {
   } catch(err) {
     console.log(err);
   }
+  */
 });
 
 

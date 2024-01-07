@@ -12,6 +12,8 @@ module.exports = app => {
     router.get("/api/emisionActual", grabacion.getEmisionActual);
 
     router.get("/api/finalizar/:id", grabacion.finalizar);
+
+    router.get("/api/sendNotificaciones", grabacion.sendNotificaciones);
   
     router.get("/:id", grabacion.findOne);
   

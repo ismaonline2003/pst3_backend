@@ -127,6 +127,51 @@ exports.getEmisionActual = (req, res) => {
   });
 };
 
+const currentEmisionEmail = (mailList) => {
+  const nodeMailerConfig = require('../config/nodemailer_config');
+  const mailOptions = {
+    from: nodeMailerConfig.email,
+    to: mailList,
+    subject: `Nueva Emisión de Radio!!! ${nodeMailerConfig.platform_name}`,
+    text: `
+      Buenos dias estimado radio oyente, nos complace anunciarle que hemos iniciado una nueva emisión de 
+      radio en nuestra plataforma. Para sintonizar nuestra emisión en vivo, presione el siguiente enlace<br/>
+      <a href="${nodeMailerConfig.frontend_url}/radioOnline" target="_blank">Emisión</a>
+    `
+  };
+  nodeMailerConfig.transporter.sendMail(mailOptions, function(err, data) {
+    if (err) {
+      console.log("Error " + err);
+    } else {
+      console.log("Email sent successfully");
+    }
+  });
+}
+
+exports.sendNotificaciones = async (req, res) => {
+  try {
+    const searchEmision = await db.emision_radio.findAll({
+      where: {status_actual: "en_emision"}, 
+      order: [['fecha_inicio', 'DESC']],
+      limit: 1
+    });
+    if(searchEmision.length > 0) {
+      let suscriptoresEmails = [];
+      const searchSuscriptores = await db.suscripcion.findAll({
+        where: {}, 
+        include: [{model: db.user}]
+      });
+      for(let i = 0; i < searchSuscriptores.length; i++) {
+        suscriptoresEmails.push(searchSuscriptores[i].user.login);
+      }
+      currentEmisionEmail(suscriptoresEmails);
+      res.status(200).send();
+    } 
+  } catch(err) {
+    res.satus(400).send();
+  }
+}
+
 exports.update = async (req, res) => {
     const id = req.params.id;
     const bodyData = req.body;
