@@ -1,10 +1,17 @@
 const fs = require('fs');
-const wordpressConfig = require('../config/wordpress_config')
 const db = require("../models");
 const functions = require('../routes/functions');
+const wordpressConfig = require('../config/wordpress_config')
+const WPAPI = require('wpapi')
+const wapi_config = wordpressConfig.wapi_config;
 const Noticia = db.noticia;
 const NoticiaImagen = db.noticia_imagen;
 const Op = db.Sequelize.Op;
+const searchInclude = {include: [
+  {model: db.user, include: [{model: db.person}]},
+  {model: db.categoria_noticia},
+  {model: db.noticia_imagen}
+]}
 
 const recordValidations = (data) =>  {
   let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
@@ -126,7 +133,7 @@ exports.create = async (req, res) => {
 
       await t.commit();
 
-      const noticiaSearch = await Noticia.findOne({include: { all: true, nested: true }, where: {id: recordRes.id}});
+      const noticiaSearch = await Noticia.findOne({...searchInclude, where: {id: recordRes.id}});
 
       functions.createActionLogMessage(db, "Noticia", req.headers.authorization, recordRes.id);
 
@@ -176,8 +183,8 @@ exports.findAll = async (req, res) => {
         }
     }
 
-    let searchConfig = {include: { all: true, nested: true }, where: condition, limit:limit};
-
+    let searchConfig = {...searchInclude, where: condition, limit:limit};
+    
     Noticia.findAll(searchConfig)
     .then((data) => {
         res.send(data)
@@ -191,7 +198,7 @@ exports.findAll = async (req, res) => {
 
 exports.findOne = (req, res) => {
   const id = req.params.id;
-  Noticia.findOne({include: { all: true, nested: true }, where: {id: id}, paranoid: true})
+  Noticia.findOne({...searchInclude, where: {id: id}, paranoid: true})
     .then(data => {
       if (data) {
         res.send(data);
@@ -205,6 +212,99 @@ exports.findOne = (req, res) => {
       });
     });
 };
+
+
+const getWordpressContent = (data) => {
+  let wordpressContent = `
+    <img class="img-fluid wp-post-image" src="${wordpressConfig.external_backend_url}/${data.miniatura}" alt="" decoding="async"  style="width: 80% !important;">
+    <article class="page-content-single small single">
+      ${data.contenido}
+    </article>
+  `;
+  return wordpressContent;
+}
+
+const sendPostToWordpress = async(data) => {
+  try {
+    const wp = new WPAPI(wapi_config);
+    let categories = [];
+    if(data.categoria_noticium.wordpress_id) {
+      categories = [data.categoria_noticium.wordpress_id];
+    }
+    const wordpressContent = getWordpressContent(data);
+    const wordpressPostRes = await wp.posts().create({
+        // "title" and "content" are the only required properties
+        title: data.nombre,
+        content: wordpressContent,
+        categories: categories,
+        // Post will be created as a draft by default if a specific "status"
+        // is not specified
+        status: 'publish'
+    }); 
+    console.log(wordpressPostRes);
+    return wordpressPostRes.id;
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const updateInWordpress = async(data) => {
+  try {
+      const wp = new WPAPI(wapi_config);
+      if(data.wordpress_id) {
+        const wp = new WPAPI(wapi_config);
+        const wordpressContent = getWordpressContent(data);
+
+        let categories = [];
+
+        if(data.categoria_noticia.wordpress_id) {
+          categories = [data.categoria_noticia.wordpress_id];
+        }
+
+        const wordpressRes = await wp.posts().id(data.wordpress_id).update({
+          title: data.nombre,
+          content: wordpressContent,
+          categories: categories,
+        }); 
+
+        console.log(wordpressRes);
+        return true;
+      }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const hideInWordpress = async(wordpressId) => {
+  try {
+      if(wordpressId) {
+        const wp = new WPAPI(wapi_config);
+        const wordpressRes = await wp.posts().id(wordpressId).update({status: 'private'}); 
+        console.log(wordpressRes);
+        return true;
+      }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const deleteInWordpress = async(wordpressId) => {
+  try {
+    const wp = new WPAPI(wapi_config);
+    if(wordpressId) {
+      const wordpressRes = await wp.posts().id(wordpressId).delete({force: true}); 
+      console.log(wordpressRes);
+      return true;
+    }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
 
 exports.update = async (req, res) => {
     const t = await db.sequelize.transaction();
@@ -240,17 +340,35 @@ exports.update = async (req, res) => {
         errorMessage = createImgs.msg;
         throw new Error(errorMessage);
       }
-      await t.commit();
-      const noticiaSearch = await Noticia.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}})
-      if(bodyData.post && !noticiaSearch.wordpress_id) {
-        //publicar
+      const noticiaSearch = await Noticia.findOne({...searchInclude, where: {id: bodyData.id}});
+
+      if(bodyData.post && !noticiaSearch.dataValues.wordpress_id) {
+        //crear
+        const wordpressId = await sendPostToWordpress(noticiaSearch.dataValues);
+        if(!wordpressId) {
+          throw new Error(errorMessage);
+        }
+        await Noticia.update({wordpress_id : wordpressId}, {where: {id: bodyData.id}, transaction: t});
       }
-      if(!bodyData.post && noticiaSearch.wordpress_id) {
+
+      if(!bodyData.post && noticiaSearch.dataValues.wordpress_id) {
         //ocultar
+        const wordpressRes= hideInWordpress(noticiaSearch.dataValues.wordpress_id);
+        if(!wordpressRes) {
+          throw new Error(errorMessage);
+        }
+      } 
+      
+      if(bodyData.post && noticiaSearch.dataValues.wordpress_id) {
+        //actualizar
+        const wordpressRes = updateInWordpress(noticiaSearch.dataValues);
+        if(!wordpressRes) {
+          throw new Error(errorMessage);
+        }
       }
 
       functions.updateActionLogMessage(db, "Noticia", req.headers.authorization, bodyData.id);
-
+      await t.commit();
       res.send({message: "La noticia fue actualizada satisfactoriamente!!", data: noticiaSearch});
     }).catch(async(err) => {
       await t.rollback();
@@ -258,15 +376,28 @@ exports.update = async (req, res) => {
     });
 };
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res) => {
     const id = req.params.id;
+    const noticiaSearch = await Noticia.findOne({where: {id: id}});
+    let wordpressId = false;
+    if(noticiaSearch) {
+      if(noticiaSearch.dataValues.wordpress_id) {
+        wordpressId = noticiaSearch.dataValues.wordpress_id;
+      }
+    }
     Noticia.destroy({
       where: { id: id },
       individualHooks: true
     })
-    .then(num => {
+    .then(async (num) => {
         if (num == 1) {
           functions.deleteActionLogMessage(db, "Noticia", req.headers.authorization, id);
+          if(wordpressId) {
+            const wordpressRes = await deleteInWordpress(wordpressId);
+            if(!wordpressRes) {
+              throw new Error(errorMessage);
+            }
+          }
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });

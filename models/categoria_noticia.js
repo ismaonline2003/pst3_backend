@@ -8,7 +8,10 @@ module.exports = (sequelize, Sequelize) => {
       },
       descripcion: {
         type: Sequelize.STRING
-      }//
+      },
+      wordpress_id: {
+        type: Sequelize.INTEGER
+      }
     }, 
     {
       tableName: 'categoria_noticia',

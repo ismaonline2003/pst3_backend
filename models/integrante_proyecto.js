@@ -30,8 +30,24 @@ module.exports = (sequelize, Sequelize, Proyecto, Inscripcion) => {
       deletedAt: 'deleted_at',
       timestamps: true
     });
-    Proyecto.belongsToMany(Inscripcion, { through: IntegranteProyecto, foreignKey: "proyecto_id", onDelete: 'cascade'});
-    Inscripcion.belongsToMany(Proyecto, { through: IntegranteProyecto,  foreignKey: "inscripcion_id"});
+    //Proyecto.belongsToMany(Inscripcion, { through: IntegranteProyecto, foreignKey: "proyecto_id", onDelete: 'cascade'});
+    //Inscripcion.belongsToMany(Proyecto, { through: IntegranteProyecto,  foreignKey: "inscripcion_id"});
+    Proyecto.hasMany(IntegranteProyecto,  {
+      foreignKey: "proyecto_id",
+        onDelete: 'RESTRICT'
+    });
+    IntegranteProyecto.belongsTo(Proyecto, {
+      foreignKey: "proyecto_id",
+      onDelete: 'RESTRICT'
+    });
+    Inscripcion.hasMany(IntegranteProyecto,  {
+      foreignKey: "inscripcion_id",
+        onDelete: 'RESTRICT'
+    });
+    IntegranteProyecto.belongsTo(Inscripcion, {
+      foreignKey: "inscripcion_id",
+      onDelete: 'RESTRICT'
+    });
     //validations in hooks
     /*
     Proyecto.beforeDestroy(async (record, options) => {

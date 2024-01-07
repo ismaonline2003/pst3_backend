@@ -1,13 +1,32 @@
 const fs = require('fs');
+const WPAPI = require('wpapi');
 const db = require("../models");
 const functions = require('../routes/functions');
+const wordpressConfig = require('../config/wordpress_config')
+const wapi_config = wordpressConfig.wapi_config;
 const Proyecto = db.proyecto;
 const IntegranteProyecto = db.integrante_proyecto;
 const ProyectoArchivo = db.proyecto_archivo;
-
 const Seccion = db.seccion;
 const CarreraUniversitaria = db.carrera_universitaria;
 const Op = db.Sequelize.Op;
+const searchInclude = {include: [
+  {model: db.seccion, include: [{model: db.carrera_universitaria}]},
+  {
+    model: db.integrante_proyecto, 
+    include: [
+      {
+        model: db.inscripcion,
+        include: [
+          {model: db.estudiante, include: [{model: db.person}]},
+          {model: db.seccion}
+        ]
+      }
+    ]
+  },
+  {model: db.proyecto_archivo}
+]}
+
 
 const generalValidations = async (data, integrantesAdded) =>  {
   let objReturn = {'status': 'success', 'data': {}, 'msg': ''};
@@ -178,9 +197,9 @@ const getFileName = (file) => {
   return filename;
 }
 
-const createProjectFiles = async (projectId, fileList, files, type, transaction) => {
+const createProjectFiles = async (projectId, fileList, files, type, transaction, initVal) => {
     let objReturn = {status: 'success', msg: '', data: []};
-    for(let i = 0; i < fileList.length; i++) {
+    for(let i = initVal; i < fileList.length; i++) {
         let item = fileList[i];
         let file = files[item.index];
         const fileRead = fs.readFileSync(file.path);
@@ -209,7 +228,8 @@ const createProjectFiles = async (projectId, fileList, files, type, transaction)
           }
         }
 
-        await ProyectoArchivo.create(fileData, {transaction:transaction})
+        if(fileData) {
+                  await ProyectoArchivo.create(fileData, {transaction:transaction})
         .then((proyectoArchivoRes) => {
             fileData.id = proyectoArchivoRes.id;
             objReturn.data.push(fileData)
@@ -218,6 +238,7 @@ const createProjectFiles = async (projectId, fileList, files, type, transaction)
             objReturn = {status: 'error', msg: `Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde.`, data: []};
             return objReturn;
         })
+        }
     }
     return objReturn;
 }
@@ -266,21 +287,179 @@ const deleteProjectFiles = async (projectId, fileList, type, transaction) => {
     return objReturn;
 }
 
+const getPlantillaContent = (data) => {
+  let integrantesProyectoHtml = "";
+  data.integrante_proyectos.map((i) => {
+    integrantesProyectoHtml += `<li><span style="color: #808080">${i.inscripcion.estudiante.person.name} ${i.inscripcion.estudiante.person.lastname}</span></li>`;
+  });
+  let proyectoArchivosImgHTML = "";
+  data.proyecto_archivos.filter(p_a => p_a.tipo === 'IMG').map((p_a) => {
+    let proyectoArchivoUrl =  `${wordpressConfig.img_endpoint}/${p_a.url.replace('src/fileUploads/', '')}`;
+    proyectoArchivosImgHTML += `
+        <figure class="gallery-item" style="width: 250px !important;">
+          <div class="gallery-icon landscape" style="text-align: center !important; width: 100% !important;">
+            <a
+              href="${proyectoArchivoUrl}"
+              target="_blank"
+              style="width: 100% !important; height: 250px !important; background-image: url(${proyectoArchivoUrl}); background-position: center; background-repeat: no-repeat; background-size: cover;"
+              ></a>
+          </div>
+          <figcaption
+            class="wp-caption-text gallery-caption"
+          >
+            <strong>${p_a.nombre}</strong>
+          </figcaption>
+        </figure>
+    `
+  });
+  let proyectoArchivosDocHTML = "";
+  data.proyecto_archivos.filter(p_a => p_a.tipo === 'DOC').map((p_a) => {
+    let proyectoArchivoUrl =  `${wordpressConfig.img_endpoint}/${p_a.url.replace('src/fileUploads/', '')}`;
+    proyectoArchivosDocHTML += `
+      <a href="${proyectoArchivoUrl}" target="_blank" rel="noopener" data-wplink-url-error="true">${p_a.nombre}</a>
+    `
+  })
+  let content = `
+    <div class="elementor-widget-container w-100 text-center">
+      <img class="img-fluid wp-post-image" src="${wordpressConfig.img_endpoint}/${data.miniatura_filename}" alt="" decoding="async"  style="width: 80% !important;">
+    </div>
+    <br/>
+    <div class="elementor-widget-container" style="color: #808080 !important;">
+      <h3><span style="color: #6ec1e4">Autores del Proyecto</span></h3>
+      <ul>
+        ${integrantesProyectoHtml}
+      </ul>
+      <h3>
+        <span style="color: #6ec1e4"><strong>Descripción</strong></span>
+      </h3>
+      ${data.descripcion}
+    </div>
+    <div class="elementor-widget-container">
+      <h3>
+        <span style="color: #6ec1e4"><strong>Imagenes</strong></span>
+      </h3>
+      <div class="elementor-image-gallery">
+          <div class="gallery gallery-columns-4 gallery-size-large  text-left">
+            ${proyectoArchivosImgHTML}
+          </div>
+      </div>
+    </div>
+    `;
+    if(proyectoArchivosDocHTML) {
+      content += `
+        <div class="elementor-widget-container text-left" style="color: #808080 !important;">
+          <h3><span style="color: #6ec1e4">Archivos Adjuntos</span></h3>
+          <ul>
+            ${proyectoArchivosDocHTML}
+          </ul>
+        </div>
+      `;
+    }
+  return content;
+}
+
+const sendPostToWordpress = async(data) => {
+  try {
+    const wp = new WPAPI(wapi_config);
+    const wordpressContent = getPlantillaContent(data);
+    const wordpressPostRes = await wp.posts().create({
+        // "title" and "content" are the only required properties
+        title: data.nombre,
+        content: wordpressContent,
+        categories: [wordpressConfig.categoria_noticia_proyecto_id],
+        // Post will be created as a draft by default if a specific "status"
+        // is not specified
+        status: 'publish'
+    }); 
+    console.log(wordpressPostRes);
+    return wordpressPostRes.id;
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const updateInWordpress = async(data) => {
+  try {
+      if(data.wordpress_id) {
+        const wp = new WPAPI(wapi_config);
+        const wordpressContent = getPlantillaContent(data);
+        const wordpressRes = await wp.posts().id(data.wordpress_id).update({
+          title: data.nombre,
+          content: wordpressContent,
+          categories: [wordpressConfig.categoria_noticia_proyecto_id],
+        }); 
+        console.log(wordpressRes);
+        return true;
+      }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const hideInWordpress = async(wordpressId) => {
+  try {
+      if(wordpressId) {
+        const wp = new WPAPI(wapi_config);
+        const wordpressRes = await wp.posts().id(wordpressId).update({status: 'private'}); 
+        console.log(wordpressRes);
+        return true;
+      }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const deleteInWordpress = async(wordpressId) => {
+  try {
+    if(wordpressId) {
+      const wp = new WPAPI(wapi_config);
+      const wordpressRes = await wp.posts().id(wordpressId).delete({force: true}); 
+      console.log(wordpressRes);
+      return true;
+    }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const getMiniaturaFilename = (file) => {
+  const fileRead = fs.readFileSync(file.path);
+  const filename = getFileName(file);
+  const filePath = `src/fileUploads/${filename}`;
+  fs.writeFileSync(filePath, fileRead);
+  fs.unlinkSync(file.path);
+  return filename;
+}
 
 exports.create = async (req, res) => {
     const t = await db.sequelize.transaction();
     const bodyData = JSON.parse(req.body.data);
     const validations= await recordCreateValidations(bodyData);
     let errorMessage = "Ocurrió un error inesperado al intentar crear el registro.";
-
+    let filesInitVal = 0;
+    let createBodyData = {
+      id_seccion: bodyData.id_seccion,
+      nombre: bodyData.nombre,
+      descripcion: bodyData.descripcion,
+      miniatura_filename: ""
+    }
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
-    await Proyecto.create({
-      id_seccion: bodyData.id_seccion,
-      nombre: bodyData.nombre,
-      descripcion: bodyData.descripcion
-    }, {transaction: t}).then(async (proyectoRes) => {
+
+    if(bodyData.miniaturaAdded) {
+      const miniaturaFilename = getMiniaturaFilename(req.files[0]);
+      if(miniaturaFilename) {
+        createBodyData.miniatura_filename = miniaturaFilename;
+        filesInitVal = 1;
+      }
+    }
+
+    await Proyecto.create(createBodyData, {transaction: t}).then(async (proyectoRes) => {
       bodyData.id = proyectoRes.id;
       const integrantesCreate = await createIntegrantes(proyectoRes.id, bodyData.id_seccion, bodyData.integrantes, t);
       if(integrantesCreate.status != 'success') {
@@ -289,21 +468,21 @@ exports.create = async (req, res) => {
       }
       bodyData.integrantes = integrantesCreate.data;
 
-      const imgsCreate = await createProjectFiles(proyectoRes.id, bodyData.imgs, req.files, 'IMG', t);
+      const imgsCreate = await createProjectFiles(proyectoRes.id, bodyData.imgs, req.files, 'IMG', t, filesInitVal);
       if(imgsCreate.status != 'success') {
         errorMessage = imgsCreate.msg;
         throw new Error(errorMessage);
       }
       bodyData.imgs = imgsCreate.data;
 
-      const docsCreate = await createProjectFiles(proyectoRes.id, bodyData.docs, req.files, 'DOC', t);
+      const docsCreate = await createProjectFiles(proyectoRes.id, bodyData.docs, req.files, 'DOC', t, filesInitVal);
       if(docsCreate.status != 'success') {
         errorMessage = docsCreate.msg;
         throw new Error(errorMessage);
       }
       bodyData.docs = docsCreate.data;
       await t.commit();
-      const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}});
+      const proyectoSearch = await Proyecto.findOne({...searchInclude, where: {id: bodyData.id}});
 
       functions.createActionLogMessage(db, "Proyecto", req.headers.authorization, bodyData.id);
 
@@ -370,7 +549,7 @@ exports.findAll = async (req, res) => {
 
 exports.findOne = (req, res) => {
   const id = req.params.id;
-  Proyecto.findOne({include: { all: true, nested: true }, where: {id: id}, paranoid: true})
+  Proyecto.findOne({...searchInclude, where: {id: id}, paranoid: true})
     .then(data => {
       if (data) {
         res.send(data);
@@ -388,17 +567,26 @@ exports.findOne = (req, res) => {
 exports.update = async (req, res) => {
     const t = await db.sequelize.transaction();
     const bodyData = JSON.parse(req.body.data);
-    const updateData = {
+    let updateData = {
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion,
       id_seccion: bodyData.id_seccion
     }
+    let filesInitVal = 0;
     const validations= await recordUpdateValidations(bodyData);
     let errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
 
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
       return;
+    }
+
+    if(bodyData.miniaturaAdded) {
+      const miniaturaFilename = getMiniaturaFilename(req.files[0]);
+      if(miniaturaFilename) {
+        updateData.miniatura_filename = miniaturaFilename;
+        filesInitVal = 1;
+      }
     }
 
     Proyecto.update(updateData, {where: {id: bodyData.id}, transaction: t})
@@ -417,7 +605,7 @@ exports.update = async (req, res) => {
         }
 
         //imgs
-        const imgsCreate = await createProjectFiles(bodyData.id, bodyData.addedImgs, req.files, 'IMG', t);
+        const imgsCreate = await createProjectFiles(bodyData.id, bodyData.addedImgs, req.files, 'IMG', t, filesInitVal);
         if(imgsCreate.status != 'success') {
           errorMessage = imgsCreate.msg;
           throw new Error(errorMessage);
@@ -436,7 +624,7 @@ exports.update = async (req, res) => {
         }
 
         //docs
-        const docsCreate = await createProjectFiles(bodyData.id, bodyData.addedDocs, req.files, 'DOC', t);
+        const docsCreate = await createProjectFiles(bodyData.id, bodyData.addedDocs, req.files, 'DOC', t, filesInitVal);
         if(docsCreate.status != 'success') {
           errorMessage = docsCreate.msg;
           throw new Error(errorMessage);
@@ -453,12 +641,42 @@ exports.update = async (req, res) => {
           errorMessage = docsDelete.msg;
           throw new Error(errorMessage);
         }
+        
+        //wordpress Integration
+        let proyectoSearch = await Proyecto.findOne({...searchInclude, where: {id: bodyData.id}});
 
-        await t.commit();
-        const proyectoSearch = await Proyecto.findOne({include: { all: true, nested: true }, where: {id: bodyData.id}});
+        if(bodyData.post && !proyectoSearch.dataValues.wordpress_id) {
+          //crear
+          const wordpressId = await sendPostToWordpress(proyectoSearch.dataValues);
+          if(!wordpressId) {
+            throw new Error(errorMessage);
+          }
+          await Proyecto.update({wordpress_id : wordpressId}, {where: {id: bodyData.id}, transaction: t});
+          await t.commit();
+
+        } else if(!bodyData.post && proyectoSearch.dataValues.wordpress_id) {
+          //ocultar
+          const wordpressRes= hideInWordpress(proyectoSearch.dataValues.wordpress_id);
+          if(!wordpressRes) {
+            throw new Error(errorMessage);
+          }
+          await t.commit();
+
+        } else if(bodyData.post && proyectoSearch.dataValues.wordpress_id) {
+          //actualizar
+          await t.commit();
+          proyectoSearch = await Proyecto.findOne({...searchInclude, where: {id: bodyData.id}});
+          const wordpressRes = updateInWordpress(proyectoSearch.dataValues);
+          if(!wordpressRes) {
+            throw new Error(errorMessage);
+          }
+
+        } else {
+          await t.commit();
+        }
+
 
         functions.updateActionLogMessage(db, "Proyecto", req.headers.authorization, bodyData.id);
-
         res.status(200).send({...proyectoSearch.dataValues, message: "El proyecto fue actualizado exitosamente!!"});
 
       }).catch(async (err) => {
@@ -509,13 +727,26 @@ exports.delete = async (req, res) => {
       await t.rollback();
       res.status(500).send({message: "Ocurrió un error durante la eliminación del proyecto. Este error es relacionado a la eliminación de los integrnates y archivos relacionados."});
     }
+    const proyectoSearch = await Proyecto.findOne({where: {id: id}});
+    let wordpressId = false;
+    if(proyectoSearch) {
+      if(proyectoSearch.dataValues.wordpress_id) {
+        wordpressId = proyectoSearch.dataValues.wordpress_id;
+      }
+    }
     Proyecto.destroy({
       where: { id: id },
       individualHooks: true,
       transaction: t
     })
-    .then(num => {
+    .then(async(num) => {
         if (num == 1) {
+          if(wordpressId) {
+            const wordpressRes = await deleteInWordpress(wordpressId);
+            if(!wordpressRes) {
+              throw new Error(errorMessage);
+            }
+          }
           t.commit();
           functions.deleteActionLogMessage(db, "Proyecto", req.headers.authorization, id);
           res.send({

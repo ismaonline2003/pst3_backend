@@ -14,8 +14,11 @@ module.exports = (sequelize, Sequelize, Seccion) => {
         type: Sequelize.ENUM,
         values: ["IMG", "DOC"]
       },
-      miniatura: {
-        type: Sequelize.BLOB
+      miniatura_filename: {
+        type: Sequelize.STRING
+      },
+      wordpress_id: {
+        type: Sequelize.INTEGER
       }
     }, 
     {

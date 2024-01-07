@@ -26,7 +26,7 @@ module.exports = (sequelize, Sequelize, User, Categoria) => {
         type: Sequelize.BOOLEAN
       },
       wordpress_id: {
-        type: Sequelize.STRING
+        type: Sequelize.INTEGER
       }
     }, 
     {

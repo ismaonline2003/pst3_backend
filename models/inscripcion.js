@@ -31,8 +31,24 @@ module.exports = (sequelize, Sequelize, Estudiante, Seccion) => {
       paranoid: true,
       timestamps: true
     });
-    Estudiante.belongsToMany(Seccion, { through: Inscripcion, foreignKey: "estudiante_id"});
-    Seccion.belongsToMany(Estudiante, { through: Inscripcion,  foreignKey: "seccion_id"});
+
+    Estudiante.hasMany(Inscripcion,  {
+      foreignKey: "estudiante_id",
+        onDelete: 'RESTRICT'
+    });
+    Inscripcion.belongsTo(Estudiante, {
+      foreignKey: "estudiante_id",
+      onDelete: 'RESTRICT'
+    });
+    Seccion.hasMany(Inscripcion,  {
+      foreignKey: "seccion_id",
+        onDelete: 'RESTRICT'
+    });
+    Inscripcion.belongsTo(Seccion, {
+      foreignKey: "seccion_id",
+      onDelete: 'RESTRICT'
+    });
+
     //validations in hooks
     Estudiante.beforeDestroy(async (record, options) => {
       functions.onDeleteRestrictValidation(Inscripcion, "estudiante_id", record.id);

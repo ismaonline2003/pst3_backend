@@ -1,5 +1,8 @@
 const db = require("../models");
 const functions = require('../routes/functions');
+const wordpressConfig = require('../config/wordpress_config')
+const WPAPI = require('wpapi')
+const wapi_config = wordpressConfig.wapi_config;
 const CategoriaNoticia = db.categoria_noticia;
 const Op = db.Sequelize.Op;
 
@@ -11,6 +14,56 @@ const recordValidations = (data) =>  {
   }
   return objReturn;
 }
+
+const sendToWordpress = async(data) => {
+  try {
+    if(!data.wordpress_id) {
+      const wp = new WPAPI(wapi_config);
+      const wordpressRes = await wp.categories().create({
+          // "title" and "content" are the only required properties
+          name: data.nombre,
+          description: data.descripcion
+      }); 
+      console.log(wordpressRes.id);
+      return wordpressRes.id;
+    }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const updateInWordpress = async(data) => {
+  try {
+      const wp = new WPAPI(wapi_config);
+      if(data.wordpress_id) {
+        const wordpressRes = await wp.categories().id(data.wordpress_id).update({
+          name: data.nombre,
+          description: data.descripcion
+        }); 
+        console.log(wordpressRes);
+        return true;
+      }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const deleteInWordpress = async(wordpressId) => {
+  try {
+    const wp = new WPAPI(wapi_config);
+    if(wordpressId) {
+      const wordpressRes = await wp.categories().id(wordpressId).delete({force: true}); 
+      console.log(wordpressRes);
+      return true;
+    }
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
   
 
 exports.create = async (req, res) => {
@@ -26,9 +79,15 @@ exports.create = async (req, res) => {
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion
     })
-    .then(recordRes => {
+    .then(async (recordRes) => {
         bodyData.id = recordRes.dataValues.id;
+        bodyData.wordpress_id = false;
         functions.createActionLogMessage(db, "Categoría Noticias", req.headers.authorization, bodyData.id);
+        const wordpressId = await sendToWordpress(bodyData);
+        if(!wordpressId) {
+          throw new Error(errorMessage);
+        }
+        await CategoriaNoticia.update({wordpress_id: wordpressId}, {where: {id: bodyData.id}});
         res.status(200).send(bodyData);
     }).catch(err => {
       res.status(500).send({message: errorMessage});
@@ -97,23 +156,42 @@ exports.update = async (req, res) => {
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion
     }, {where: {id: id}})
-    .then(recordRes => {
+    .then(async (recordRes) => {
       functions.updateActionLogMessage(db, "Categoría Noticias", req.headers.authorization, id);
+      const catSearch = await CategoriaNoticia.findOne({where: {id:id}});
+      if(catSearch.dataValues.wordpress_id) {
+        const wordpressRes = await updateInWordpress(catSearch.dataValues);
+        if(!wordpressRes) {
+          throw new Error(errorMessage);
+        }
+      }
       res.send({message: "El registro fue actualizado satisfactoriamente!!", data: bodyData});
     }).catch(err => {
       res.status(500).send({message: errorMessage});
     });
 };
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res) => {
     const id = req.params.id;
+    const catSearch = await CategoriaNoticia.findOne({where: {id: id}});
+    const errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
+    let wordpressId = false;
+    if(catSearch && catSearch.dataValues.wordpress_id) {
+      wordpressId = catSearch.dataValues.wordpress_id;
+    }
     CategoriaNoticia.destroy({
       where: { id: id },
       individualHooks: true
     })
-    .then(num => {
+    .then(async (num) => {
         if (num == 1) {
           functions.deleteActionLogMessage(db, "Categoría Noticias", req.headers.authorization, id);
+          if(wordpressId) {
+            const wordpressRes = await deleteInWordpress(wordpressId);
+            if(!wordpressRes) {
+              throw new Error(errorMessage);
+            }
+          }
           res.send({
             message: "El registro fue eliminado exitosamente!!"
           });
