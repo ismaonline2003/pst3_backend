@@ -12,9 +12,6 @@ module.exports = (sequelize, Sequelize, EmisionRadio, RadioSuscriptor, RadioEspe
         },
         dispositivo: {
             type: Sequelize.STRING
-        },
-        tiempo_entrada: {
-            type: Sequelize.DATE
         }
     }, 
     {

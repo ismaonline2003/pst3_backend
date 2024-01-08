@@ -11,6 +11,8 @@ module.exports = {
 
 /*
 Configuración del ambiente de Wordpress:
+- Crear nueva instancia de wordpress desde 0
+- instalar el all-in-one wp migration
 - Instalar el backup de wordpress
 - desactivar los plugins innecesarios
 - establecer usuario y contraseña a utilizar

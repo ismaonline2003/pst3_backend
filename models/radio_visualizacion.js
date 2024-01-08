@@ -1,11 +1,17 @@
 module.exports = (sequelize, Sequelize) => {
     const functions = require('../routes/functions');
     const RadioVisualizacion = sequelize.define("radio_visualizacion", {
-        activo: {
-            type: Sequelize.BOOLEAN
-        },
         ip: {
             type: Sequelize.STRING
+        },
+        live_emision_id: {
+            type: Sequelize.INTEGER
+        },
+        audio_emision_id: {
+            type: Sequelize.INTEGER
+        },
+        count: {
+            type: Sequelize.INTEGER
         }
     }, 
     {

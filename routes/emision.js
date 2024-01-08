@@ -11,6 +11,7 @@ module.exports = app => {
 
     router.post("/api/suscribe", emision.suscribe);
     router.post("/api/unsuscribe", emision.unsuscribe);
+    router.post("/api/view", emision.postView);
   
     app.use('/api/emision', router);
 };

@@ -35,7 +35,7 @@ exports.findAll = async (req, res) => {
         condition.tipo = {[Op.in]: ['create', 'update', 'delete']}
     }
 
-    let searchConfig = {where: condition, include: [{model: db.user, include: [{model: db.person}]}], limit:limit};
+    let searchConfig = {where: condition, include: [{model: db.user, include: [{model: db.person}]}], limit:limit, order: [['created_at', 'DESC']]};
 
     LogsSistema.findAll(searchConfig)
     .then((data) => {
@@ -77,7 +77,7 @@ exports.findAllLogin = async (req, res) => {
 
     condition.tipo = {[Op.eq]: 'inicio_sesion'};
 
-    let searchConfig = {where: condition, include: [{model: db.user, include: [{model: db.person}]}], limit:limit};
+    let searchConfig = {where: condition, include: [{model: db.user, include: [{model: db.person}]}], limit:limit, order: [['created_at', 'DESC']]};
 
     LogsSistema.findAll(searchConfig)
     .then((data) => {

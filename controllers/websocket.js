@@ -54,7 +54,10 @@ class WSController {
                 const diff = new Date(search[0].dataValues.fecha_fin_emision_programada).getTime() - currentDate.getTime();
                 const secondsDiff = (diff / 1000) - 4; //el -4 es el tiempo que se deja entre cada emisión
                 const AudioStartPoint = search[0].dataValues.radio_audio.seconds_duration - secondsDiff;
-                search[0].dataValues.audio_played_current_time = AudioStartPoint; 
+                search[0].dataValues.audio_played_current_time = 0
+                if(AudioStartPoint > 8) {
+                    search[0].dataValues.audio_played_current_time = AudioStartPoint; 
+                }
                 io.sockets.emit('emisionScheduledAudio', {'radio_audio': true, 'audio_data': search[0].dataValues});
                 return true;
             }

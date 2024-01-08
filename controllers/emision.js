@@ -1,4 +1,5 @@
 const db = require("../models");
+const moment = require('moment');
 const functions = require('../routes/functions');
 const Emision = db.emision_radio;
 const EmisionMessages = db.radio_espectador_mensaje;
@@ -47,10 +48,69 @@ exports.findOne = async (req, res) => {
     res.status(200).send(emisionSearch.dataValues);
 }
 
+exports.postView = async (req, res) => {
+    try {
+        /*
+            is_emision
+            scheduled_audio_emision_id
+        */
+        const body = req.body;
+        const currentDate = new Date();
+        const currentDateFormatted = moment(currentDate).format('YYYY-MM-DD');
+        if(body.is_emision) {
+            let visualizacion_search = await db.sequelize.query( `
+                SELECT 
+                    r_v.id AS id, 
+                    r_v.live_emision_id AS live_emision_id,
+                    r_v.count AS count
+                FROM radio_visualizacion AS r_v
+                INNER JOIN emision_radio AS e_r ON e_r.id = r_v.live_emision_id
+                WHERE e_r.status_actual = 'en_emision'
+                AND r_v.live_emision_id = e_r.id
+                AND r_v.ip = '${req.ip}' 
+                AND r_v.created_at LIKE '%${currentDateFormatted}%' 
+                AND r_v.deleted_at IS NULL
+                AND e_r.deleted_at IS NULL
+                LIMIT 1
+            `);
+            if(visualizacion_search[0].length === 0) {
+                let radio_emision_search = await db.sequelize.query( `
+                    SELECT id FROM emision_radio WHERE status_actual = 'en_emision' AND deleted_at IS NULL LIMIT 1
+                `);
+                if(radio_emision_search[0].length > 0) {
+                    await db.radio_visualizacion.create({ip: req.ip, live_emision_id: radio_emision_search[0][0].id, count: 1});
+                }
+            } else {
+                await db.radio_visualizacion.update({count: visualizacion_search[0][0].count+1}, {where: {id: visualizacion_search[0][0].id}});
+            }
+        } else {
+            if(body.scheduled_audio_emision_id && !isNaN(body.scheduled_audio_emision_id)) {
+                let visualizacion_search = await db.sequelize.query( `
+                    SELECT id, audio_emision_id, count FROM radio_visualizacion WHERE ip = '${req.ip}' 
+                    AND created_at LIKE '%${currentDateFormatted}%' 
+                    AND audio_emision_id = ${body.scheduled_audio_emision_id}
+                    AND deleted_at IS NULL
+                    LIMIT 1
+                `);
+                if(visualizacion_search[0].length === 0) {
+                    await db.radio_visualizacion.create({ip: req.ip, audio_emision_id: body.scheduled_audio_emision_id, count: 1});
+                } else {
+                    await db.radio_visualizacion.update({count: visualizacion_search[0][0].count+1}, {where: {id: visualizacion_search[0][0].id}});
+                }
+            }
+        }
+
+        res.send();
+    } catch(err) {
+        res.status(500).send({message: "Ha Ocurrido un error inesperado... Vuelva a intentarlo mas tarde."});
+    }
+}
+
 exports.getCurrent = async (req, res) => {
     try {
         let resData = {radio_emision: false, emision_audio: false}
         const currentDate = new Date();
+        const currentDateFormatted = moment(currentDate).format('YYYY-MM-DD');
         const searchEmision = await Emision.findAll({
             where: {status_actual: "en_emision"}, 
             order: [['fecha_inicio', 'DESC']],
@@ -65,6 +125,18 @@ exports.getCurrent = async (req, res) => {
         });
         if(searchEmision.length > 0) {
             resData.radio_emision = searchEmision[0].dataValues;
+            let visualizacion_search = await db.sequelize.query( `
+                SELECT id, live_emision_id, count FROM radio_visualizacion WHERE ip = '${req.ip}' 
+                AND created_at LIKE '%${currentDateFormatted}%' 
+                AND live_emision_id = ${searchEmision[0].dataValues.id}
+                AND deleted_at IS NULL
+                LIMIT 1
+            `);
+            if(visualizacion_search[0].length === 0) {
+                await db.radio_visualizacion.create({ip: req.ip, live_emision_id: searchEmision[0].dataValues.id, count: 1});
+            } else {
+                await db.radio_visualizacion.update({count: visualizacion_search[0][0].count+1}, {where: {id: visualizacion_search[0][0].id}});
+            }
         }
         if(searchEmisionAudio.length > 0) {
             const diff = new Date(searchEmisionAudio[0].dataValues.fecha_fin_emision_programada).getTime() - currentDate.getTime();
@@ -72,10 +144,23 @@ exports.getCurrent = async (req, res) => {
             const AudioStartPoint = searchEmisionAudio[0].dataValues.radio_audio.seconds_duration - secondsDiff;
             searchEmisionAudio[0].dataValues.audio_played_current_time = AudioStartPoint; 
             resData.emision_audio = searchEmisionAudio[0].dataValues;
+            let visualizacion_search = await db.sequelize.query( `
+                SELECT id, audio_emision_id, count FROM radio_visualizacion WHERE ip = '${req.ip}' 
+                AND created_at LIKE '%${currentDateFormatted}%' 
+                AND audio_emision_id = ${searchEmisionAudio[0].dataValues.id}
+                AND deleted_at IS NULL
+                LIMIT 1
+            `);
+            if(visualizacion_search[0].length === 0) {
+                await db.radio_visualizacion.create({ip: req.ip, audio_emision_id: searchEmisionAudio[0].dataValues.id, count: 1});
+            } else {
+                await db.radio_visualizacion.update({count: visualizacion_search[0][0].count+1}, {where: {id: visualizacion_search[0][0].id}});
+            }
         }
+
         res.send(resData);
     } catch(err) {
-        res.status(400).send({message: "Ha Ocurrido un error inesperado... Vuelva a intentarlo mas tarde."});
+        res.status(500).send({message: "Ha Ocurrido un error inesperado... Vuelva a intentarlo mas tarde."});
     }
 };
 
