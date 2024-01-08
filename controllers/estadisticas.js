@@ -1,10 +1,10 @@
 const moment = require('moment');
 const db = require("../models");
 const functions = require('../routes/functions');
-
+const wordpressConfig = require('../config/wordpress_config')
 //web
 const getCategsWordpressIds = async () => {
-    let objReturn = {tuple_str: "(", arr: []};
+    let objReturn = {tuple_str: `(${wordpressConfig.categoria_noticia_proyecto_id}, `, arr: []};
     let query = `SELECT wordpress_id FROM categoria_noticia WHERE wordpress_id IS NOT NULL AND deleted_at IS NULL`;
 
     const categIds = await db.sequelize.query(query);
@@ -87,9 +87,7 @@ const top10ArticlesDbRequest = async (targetDate= new Date(), targetDate2=false)
 
     const request = await db.sequelize.query(query);
     if(request[0].length > 0) {
-        if(request[0].post_id) {
-            listReturn = request[0];
-        }
+        listReturn = request[0];
     }
     return listReturn;
 }
@@ -232,9 +230,7 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
 
     const request = await db.sequelize.query(query);
     if(request[0].length > 0) {
-        if(request[0].category_id) {
-            listReturn = request[0];
-        }
+        listReturn = request[0];
     }
     return listReturn;
 }
