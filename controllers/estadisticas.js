@@ -2,8 +2,7 @@ const moment = require('moment');
 const db = require("../models");
 const functions = require('../routes/functions');
 
-//Insert new Person
-
+//web
 const getCategsWordpressIds = async () => {
     let objReturn = {tuple_str: "(", arr: []};
     let query = `SELECT wordpress_id FROM categoria_noticia WHERE wordpress_id IS NOT NULL AND deleted_at IS NULL`;
@@ -43,24 +42,6 @@ const getVisitorsAndVisitsNum = async (targetDate= new Date(), targetDate2=false
     }
     return objReturn;
 }
-
-/*
-        SELECT DISTINCT
-            SUM(wp_statistics_pages.count) AS visits_num,
-            wp_terms.term_id AS category_id,
-            wp_terms.name AS category_name,
-            wp_posts.ID AS post_id,
-            wp_posts.post_title AS post_title
-        FROM wp_statistics_pages 
-        INNER JOIN wp_posts ON wp_posts.ID = wp_statistics_pages.id
-        INNER JOIN wp_term_relationships ON wp_term_relationships.object_id = wp_posts.ID
-        INNER JOIN wp_term_taxonomy ON wp_term_taxonomy.term_taxonomy_id = wp_term_relationships.term_taxonomy_id
-        INNER JOIN wp_terms ON wp_terms.term_id = wp_term_taxonomy.term_id
-        WHERE wp_statistics_pages.date = '2024-01-08' 
-        AND wp_term_taxonomy.taxonomy = 'category'
-        AND wp_statistics_pages.id != 0
-        LIMIT 10
-*/
 
 const top10ArticlesDbRequest = async (targetDate= new Date(), targetDate2=false) => {
     let listReturn = [];
@@ -206,7 +187,6 @@ const getTop10Articles = async (period="today", periodDates={}) => {
 
     return res;
 }
-
 
 const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=false) => {
     let listReturn = [];
@@ -551,6 +531,7 @@ const getResumenTrafico = async () => {
     return res;
 }
 
+//web
 exports.top10Articulos = async (req, res) => {
     try {
         const option = req.query.option;
@@ -577,10 +558,13 @@ exports.top10Categorias = async (req, res) => {
 
 exports.tendenciaTraficoDiario = async (req, res) => {
     try {
-        const option = req.query.option;
-        const date1 = req.query.date_1;
-        const date2 = req.query.date_2;
-        const dataRes = await getTendenciaTraficoDiario(option, {init: date1, finish: date2});
+        let option = req.query.option;
+        let date1 = req.query.date_1;
+        let date2 = req.query.date_2;
+        if(!option) {
+            option = 'today';
+        }
+        let dataRes = await getTendenciaTraficoDiario(option, {init: date1, finish: date2});
         res.status(200).send(dataRes);
     } catch(err) {
         console.log(err); 
@@ -625,4 +609,353 @@ exports.visitasWebGeneral = async (req, res) => {
   } catch(err) {
     res.status(500).send();
   }
+};
+
+//radio
+const getVisitorsAndVisitsRadioDbRequest = async (targetDate= new Date(), targetDate2=false) => {
+    let objReturn = {visitors: 0, visits: 0};
+    let targetDateFormatted = moment(targetDate).utc().format('YYYY-MM-DD');
+    let targetDate2Formatted = false;
+    let query1 = `
+        SELECT COUNT(visitors.ip) AS records_num FROM
+        (
+            SELECT DISTINCT ip 
+            FROM radio_visualizacion 
+            WHERE created_at BETWEEN '${targetDateFormatted} 00:00:01' 
+            AND '${targetDateFormatted} 23:59:59' 
+            AND count > 0
+            AND deleted_at IS NULL
+        ) AS visitors
+    `;
+    let query2 = `
+        SELECT SUM(count) AS records_num FROM radio_visualizacion 
+        WHERE created_at BETWEEN '${targetDateFormatted} 00:00:01' AND '${targetDateFormatted} 23:59:59' 
+        AND count > 0
+        AND deleted_at IS NULL
+    `;
+    if(targetDate2) {
+        targetDateFormatted = moment(targetDate).utc().format('YYYY-MM-DD HH:mm:ss');
+        targetDate2Formatted = moment(targetDate2).utc().format('YYYY-MM-DD HH:mm:ss');
+        query1 = `
+            SELECT COUNT(visitors.ip) AS records_num FROM
+            (
+                SELECT COUNT(ip) AS records_num 
+                FROM radio_visualizacion 
+                WHERE created_at BETWEEN '${targetDateFormatted}' AND '${targetDate2Formatted}' 
+                AND count > 0
+                AND deleted_at IS NULL
+            ) AS visitors
+        `;
+        query2 = `
+            SELECT SUM(count) AS records_num FROM radio_visualizacion 
+            WHERE created_at BETWEEN '${targetDateFormatted}' AND '${targetDate2Formatted}' 
+            AND count > 0
+            AND deleted_at IS NULL
+        `;
+    }
+
+    const currentDateVisitorsNum = await db.sequelize.query(query1);
+    if(currentDateVisitorsNum[0].length > 0) {
+        objReturn.visitors = currentDateVisitorsNum[0][0].records_num;
+    }
+    const currentDateVisitsNum = await db.sequelize.query(query2);
+    if(currentDateVisitsNum[0].length > 0) {
+        objReturn.visits = parseInt(currentDateVisitsNum[0][0].records_num);
+    }
+    return objReturn;
+}
+
+const getVisitasRadio = async (period, periodDates) => {
+    const currentDate = new Date();
+    let res = {
+        status: 'success', 
+        data: [], 
+        msg: ''
+    };
+    
+    if(!period) {
+        res = {
+            status: 'error', 
+            data: [], 
+            msg: ''
+        };
+        return res;
+    }
+
+    try {
+        let yesterday = new Date();
+        yesterday.setHours(yesterday.getHours()-24);
+        let days = 0;
+
+        if(period === 'today') {
+            let todayRes = await getVisitorsAndVisitsRadioDbRequest(currentDate);
+            res.data.push([currentDate.toISOString(), todayRes]);
+            return res;
+        }
+        if(period === 'yesterday') {
+            let todayRes = await getVisitorsAndVisitsRadioDbRequest(currentDate);
+            let yesterdayRes = await getVisitorsAndVisitsRadioDbRequest(yesterday);
+            res.data.push([currentDate.toISOString(), todayRes]);
+            res.data.push([yesterday.toISOString(), yesterdayRes]);
+            return res;
+        }
+
+        if(period === 'lastWeek') {
+            days = 7;
+        }
+
+        if(period === 'last14days') {
+            days = 14;
+        }
+
+        if(period === 'lastMonth') {
+            days = 30;
+        }
+
+        if(period === 'last60days') {
+            days = 60;
+        }
+
+        if(period === 'last90days') {
+            days = 90;
+        }
+
+        if(period === 'last120days') {
+            days = 120;
+        }
+
+        if(period === 'last6Months') {
+            days = 182;
+        }
+
+        if(period === 'lastYear') {
+            days = 365;
+        }
+
+        if(period === 'periodDates') {
+            if(!periodDates.init) {
+                res = {status: 'errpr', data: [], msg: ''};
+                return res;
+            }
+            if(!periodDates.finish) {
+                res = {status: 'errpr', data: [], msg: ''};
+                return res;
+            }
+
+            if(diff < 0) {
+                diff = diff*(-1);
+                initDate = new Date(periodDates.finish);
+                finishDate = new Date(periodDates.init);
+            }
+
+            let initDate = new Date(periodDates.init);
+            let finishDate = new Date(periodDates.finish);
+            let diff = finishDate.getTime() - initDate.getTime();
+
+            diff = diff / 1000; //segundos
+            diff = diff / 3600; //horas
+            diff = parseInt(diff / 24); //dias
+            
+            for(let i = 0; i < diff; i++) {
+                let targetDate = new Date(periodDates.init);
+                let targetDateStr = targetDate.toISOString();
+                targetDate = targetDate.setHours(targetDate.getHours()-(24*i));
+                let targetDateRes = await getVisitorsAndVisitsRadioDbRequest(targetDate);
+                res.data.push([targetDateStr, targetDateRes]);
+            }
+            return res;
+        }
+
+        for(let i = 0; i < days; i++) {
+            let targetDate = new Date();
+            targetDate.setHours(targetDate.getHours()-(24*i));
+            let targetDateStr = targetDate.toISOString();
+            let targetDateRes = await getVisitorsAndVisitsRadioDbRequest(targetDate);
+            res.data.push([targetDateStr, targetDateRes]);
+        }
+    } catch(err) {
+        console.log(err)
+        res.status = 'error';
+    }
+
+    return res;
+}
+
+exports.visitasRadio = async (req, res) => {
+    try {
+        let option = req.query.option;
+        let date1 = req.query.date_1;
+        let date2 = req.query.date_2;
+        if(!option) {
+            option = 'today';
+        }
+        const dataRes = await getVisitasRadio(option, {init: date1, finish: date2});
+        res.status(200).send(dataRes);
+    } catch(err) {
+      res.status(500).send();
+    }
+};
+
+const suscripcionesRadioDdbRequest = async (targetDate= new Date(), targetDate2=false) => {
+    let objReturn = 0
+    let targetDateFormatted = moment(targetDate).utc().format('YYYY-MM-DD');
+    let targetDate2Formatted = false;
+    let query = `
+        SELECT COUNT(suscriptors.user_id) AS records_num FROM
+        (
+            SELECT DISTINCT user_id FROM suscripcion 
+            WHERE fecha_suscripcion BETWEEN '${targetDateFormatted} 00:00:01' AND '${targetDateFormatted} 23:59:59' 
+            AND activa = TRUE
+            AND deleted_at IS NULL
+        ) AS suscriptors
+    `;
+    if(targetDate2) {
+        targetDateFormatted = moment(targetDate).utc().format('YYYY-MM-DD HH:mm:ss');
+        targetDate2Formatted = moment(targetDate2).utc().format('YYYY-MM-DD HH:mm:ss');
+        query = `
+            SELECT COUNT(suscriptors.user_id) AS records_num FROM
+            (
+                SELECT DISTINCT user_id FROM suscripcion 
+                WHERE fecha_suscripcion BETWEEN '${targetDateFormatted}' AND '${targetDateFormatted}' 
+                AND activa = TRUE
+                AND deleted_at IS NULL
+            ) AS suscriptors
+        `;
+    }
+    const res = await db.sequelize.query(query);
+    if(res[0].length > 0) {
+        objReturn = parseInt(res[0][0].records_num);
+    }
+    return objReturn;
+}
+
+const getSuscripcionesRadio = async (period, periodDates) => {
+    const currentDate = new Date();
+    let res = {
+        status: 'success', 
+        data: [], 
+        msg: ''
+    };
+    
+    if(!period) {
+        res = {
+            status: 'error', 
+            data: [], 
+            msg: ''
+        };
+        return res;
+    }
+
+    try {
+        let yesterday = new Date();
+        yesterday.setHours(yesterday.getHours()-24);
+        let days = 0;
+
+        if(period === 'today') {
+            let todayRes = await suscripcionesRadioDdbRequest(currentDate);
+            res.data.push([currentDate.toISOString(), todayRes]);
+            return res;
+        }
+        if(period === 'yesterday') {
+            let todayRes = await suscripcionesRadioDdbRequest(currentDate);
+            let yesterdayRes = await suscripcionesRadioDdbRequest(yesterday);
+            res.data.push([currentDate.toISOString(), todayRes]);
+            res.data.push([yesterday.toISOString(), yesterdayRes]);
+            return res;
+        }
+
+        if(period === 'lastWeek') {
+            days = 7;
+        }
+
+        if(period === 'last14days') {
+            days = 14;
+        }
+
+        if(period === 'lastMonth') {
+            days = 30;
+        }
+
+        if(period === 'last60days') {
+            days = 60;
+        }
+
+        if(period === 'last90days') {
+            days = 90;
+        }
+
+        if(period === 'last120days') {
+            days = 120;
+        }
+
+        if(period === 'last6Months') {
+            days = 182;
+        }
+
+        if(period === 'lastYear') {
+            days = 365;
+        }
+
+        if(period === 'periodDates') {
+            if(!periodDates.init) {
+                res = {status: 'errpr', data: [], msg: ''};
+                return res;
+            }
+            if(!periodDates.finish) {
+                res = {status: 'errpr', data: [], msg: ''};
+                return res;
+            }
+
+            if(diff < 0) {
+                diff = diff*(-1);
+                initDate = new Date(periodDates.finish);
+                finishDate = new Date(periodDates.init);
+            }
+
+            let initDate = new Date(periodDates.init);
+            let finishDate = new Date(periodDates.finish);
+            let diff = finishDate.getTime() - initDate.getTime();
+
+            diff = diff / 1000; //segundos
+            diff = diff / 3600; //horas
+            diff = parseInt(diff / 24); //dias
+            
+            for(let i = 0; i < diff; i++) {
+                let targetDate = new Date(periodDates.init);
+                let targetDateStr = targetDate.toISOString();
+                targetDate = targetDate.setHours(targetDate.getHours()-(24*i));
+                let targetDateRes = await suscripcionesRadioDdbRequest(targetDate);
+                res.data.push([targetDateStr, targetDateRes]);
+            }
+            return res;
+        }
+
+        for(let i = 0; i < days; i++) {
+            let targetDate = new Date();
+            targetDate.setHours(targetDate.getHours()-(24*i));
+            let targetDateStr = targetDate.toISOString();
+            let targetDateRes = await suscripcionesRadioDdbRequest(targetDate);
+            res.data.push([targetDateStr, targetDateRes]);
+        }
+    } catch(err) {
+        console.log(err)
+        res.status = 'error';
+    }
+
+    return res;
+}
+
+exports.suscripcionesRadio = async (req, res) => {
+    try {
+        let option = req.query.option;
+        let date1 = req.query.date_1;
+        let date2 = req.query.date_2;
+        if(!option) {
+            option = 'today';
+        }
+        const dataRes = await getSuscripcionesRadio(option, {init: date1, finish: date2});
+        res.status(200).send(dataRes);
+    } catch(err) {
+      res.status(500).send();
+    }
 };
