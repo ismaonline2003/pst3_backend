@@ -388,6 +388,7 @@ const updateInWordpress = async(data) => {
           title: data.nombre,
           content: wordpressContent,
           categories: [wordpressConfig.categoria_noticia_proyecto_id],
+          status: 'publish'
         }); 
         console.log(wordpressRes);
         return true;

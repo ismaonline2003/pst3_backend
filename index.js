@@ -92,6 +92,8 @@ require("./routes/categoria_noticia.js")(app);
 require("./routes/suscripciones.js")(app);
 require("./routes/files.js")(app);
 require("./routes/logs_sistema.js")(app);
+require("./routes/estadisticas.js")(app);
+
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3001;

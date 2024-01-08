@@ -266,6 +266,7 @@ const updateInWordpress = async(data) => {
           title: data.nombre,
           content: wordpressContent,
           categories: categories,
+          status: 'publish'
         }); 
 
         console.log(wordpressRes);
