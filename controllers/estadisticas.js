@@ -34,11 +34,15 @@ const getVisitorsAndVisitsNum = async (targetDate= new Date(), targetDate2=false
 
     const currentDateVisitorsNum = await db.sequelize.query(query1);
     if(currentDateVisitorsNum[0].length > 0) {
-        objReturn.visitors = currentDateVisitorsNum[0][0].records_num;
+        if(currentDateVisitorsNum[0][0].records_num) {
+            objReturn.visitors = currentDateVisitorsNum[0][0].records_num;
+        }
     }
     const currentDateVisitsNum = await db.sequelize.query(query2);
     if(currentDateVisitsNum[0].length > 0) {
-        objReturn.visits = parseInt(currentDateVisitsNum[0][0].records_num);
+        if(currentDateVisitsNum[0][0].records_num) {
+            objReturn.visits = parseInt(currentDateVisitsNum[0][0].records_num);
+        }
     }
     return objReturn;
 }
@@ -194,7 +198,6 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
     let query = `
         SELECT DISTINCT
             SUM(wp_statistics_pages.count) AS visits_num,
-            wp_terms.term_id AS category_id,
             wp_terms.name AS category_name
         FROM wp_statistics_pages 
         INNER JOIN wp_posts ON wp_posts.ID = wp_statistics_pages.id
@@ -213,7 +216,6 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
         query = `
             SELECT DISTINCT
                 SUM(wp_statistics_pages.count) AS visits_num,
-                wp_terms.term_id AS category_id,
                 wp_terms.name AS category_name
             FROM wp_statistics_pages 
             INNER JOIN wp_posts ON wp_posts.ID = wp_statistics_pages.id
@@ -227,10 +229,21 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
             LIMIT 10
         `;
     }
-
+    let total = 0;
     const request = await db.sequelize.query(query);
     if(request[0].length > 0) {
-        listReturn = request[0];
+        for(let i = 0; i < request[0].length; i++) {
+            let record = request[0][i];
+            if(!record.visits_num) {
+                record.visits_num = "0";
+            }
+            record.visits_num = parseInt(record.visits_num);
+            total += record.visits_num;
+            listReturn.push(record);
+        }
+    }
+    for(let i = 0; i < listReturn.length; i++) {
+        listReturn[i].percentage = (listReturn[i].visits_num/total)*100;
     }
     return listReturn;
 }
@@ -377,14 +390,14 @@ const getTendenciaTraficoDiario = async (period="today", periodDates={}) => {
 
         if(period === 'today') {
             let todayRes = await getVisitorsAndVisitsNum(currentDate);
-            res.data.push([currentDate.toISOString(), todayRes]);
+            res.data.push([moment(currentDate).utc().format('YY-MM-DD'), todayRes]);
             return res;
         }
         if(period === 'yesterday') {
             let todayRes = await getVisitorsAndVisitsNum(currentDate);
             let yesterdayRes = await getVisitorsAndVisitsNum(yesterday);
-            res.data.push([currentDate.toISOString(), todayRes]);
-            res.data.push([yesterday.toISOString(), yesterdayRes]);
+            res.data.push([moment(currentDate).utc().format('YY-MM-DD'), todayRes]);
+            res.data.push([moment(yesterday).utc().format('YY-MM-DD'), yesterdayRes]);
             return res;
         }
 
@@ -451,10 +464,9 @@ const getTendenciaTraficoDiario = async (period="today", periodDates={}) => {
             
             for(let i = 0; i < diff; i++) {
                 let targetDate = new Date(periodDates.init);
-                let targetDateStr = targetDate.toISOString();
                 targetDate = targetDate.setHours(targetDate.getHours()-(24*i));
                 let targetDateRes = await getVisitorsAndVisitsNum(targetDate);
-                res.data.push([targetDateStr, targetDateRes]);
+                res.data.push([moment(targetDate).utc().format('YY-MM-DD'), targetDateRes]);
             }
             return res;
         }
@@ -464,7 +476,7 @@ const getTendenciaTraficoDiario = async (period="today", periodDates={}) => {
             targetDate.setHours(targetDate.getHours()-(24*i));
             let targetDateStr = targetDate.toISOString();
             let targetDateRes = await getVisitorsAndVisitsNum(targetDate);
-            res.data.push([targetDateStr, targetDateRes]);
+            res.data.push([moment(targetDate).utc().format('YY-MM-DD'), targetDateRes]);
         }
     } catch(err) {
         console.log(err)
@@ -487,6 +499,7 @@ const getResumenTrafico = async () => {
             last120days:{visitors: 0, visits: 0},
             thisYear:{visitors: 0, visits: 0},
             lastYear:{visitors: 0, visits: 0},
+            total:{visitors: 0, visits: 0},
         }, 
         msg: ''
     };
@@ -518,7 +531,10 @@ const getResumenTrafico = async () => {
         res.data.last90days = await getVisitorsAndVisitsNum(currentDate, last90days);
         res.data.last120days = await getVisitorsAndVisitsNum(currentDate, last120days);
         res.data.thisYear = await getVisitorsAndVisitsNum(currentDate, currentYearFirstDay);
-        res.data.lastYear = await getVisitorsAndVisitsNum(currentDate, lastYear);    
+        res.data.lastYear = await getVisitorsAndVisitsNum(currentDate, lastYear);
+        res.data.total.visitors += (res.data.lastYear.visitors + res.data.today.visitors)
+        res.data.total.visits += (res.data.lastYear.visits + res.data.today.visits)
+
     } catch(err) {
         console.log(err)
         res.status = 'error';
@@ -554,13 +570,17 @@ exports.top10Categorias = async (req, res) => {
 
 exports.tendenciaTraficoDiario = async (req, res) => {
     try {
+        let dataRes = []
         let option = req.query.option;
         let date1 = req.query.date_1;
         let date2 = req.query.date_2;
         if(!option) {
             option = 'today';
         }
-        let dataRes = await getTendenciaTraficoDiario(option, {init: date1, finish: date2});
+        let getData = await getTendenciaTraficoDiario(option, {init: date1, finish: date2});
+        if(getData.status === 'success') {
+            dataRes = getData.data.reverse();
+        }
         res.status(200).send(dataRes);
     } catch(err) {
         console.log(err); 
@@ -586,20 +606,20 @@ exports.visitasWebGeneral = async (req, res) => {
         */
     const dataRes = {status: 'success', data: {}, msg: ''};
     const resumenTrafico = await getResumenTrafico();
-    const tendenciaTraficoDiario = await getTendenciaTraficoDiario('today');
-    const top10Categories = await getTop10Categories('today');
-    const top10Articles = await getTop10Articles('today');
+    const tendenciaTraficoDiario = await getTendenciaTraficoDiario('lastWeek');
+    const top10Categories = await getTop10Categories('lastWeek');
+    const top10Articles = await getTop10Articles('lastWeek');
     if(resumenTrafico.status === 'success') {
         dataRes.data.resumen_trafico = resumenTrafico.data;
     }
     if(tendenciaTraficoDiario.status === 'success') {
-        dataRes.data.tendencia_trafico_diario = tendenciaTraficoDiario.data;
+        dataRes.data.tendencia_trafico_diario = tendenciaTraficoDiario.data.reverse();
     }
     if(top10Categories.status === 'success') {
-        dataRes.data.top_10_categories = top10Categories.data;
+        dataRes.data.top_10_categories = top10Categories.data.reverse();
     }
     if(top10Articles.status === 'success') {
-        dataRes.data.top_10_articles = top10Articles.data;
+        dataRes.data.top_10_articles = top10Articles.data.reverse();
     }
     res.status(200).send(dataRes);
   } catch(err) {
