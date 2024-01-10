@@ -207,7 +207,7 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
         WHERE wp_statistics_pages.date = '${targetDateFormatted}' 
         AND wp_term_taxonomy.taxonomy = 'category'
         AND wp_statistics_pages.id != 0
-        AND wp_terms.term_id IN ${validCategIds.tuple_str}
+        /*AND wp_terms.term_id IN ${validCategIds.tuple_str}*/
         LIMIT 10
     `;
     if(targetDate2) {
@@ -222,10 +222,10 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
             INNER JOIN wp_term_relationships ON wp_term_relationships.object_id = wp_posts.ID
             INNER JOIN wp_term_taxonomy ON wp_term_taxonomy.term_taxonomy_id = wp_term_relationships.term_taxonomy_id
             INNER JOIN wp_terms ON wp_terms.term_id = wp_term_taxonomy.term_id
-            WHERE wp_statistics_pages.date BETWEEN '${targetDateFormatted}' AND '${targetDate2Formatted}' 
+            WHERE wp_statistics_pages.date BETWEEN '${targetDate2Formatted}' AND '${targetDateFormatted}' 
             AND wp_term_taxonomy.taxonomy = 'category'
             AND wp_statistics_pages.id != 0
-            AND wp_terms.term_id IN ${validCategIds.tuple_str}
+            /*AND wp_terms.term_id IN ${validCategIds.tuple_str}*/
             LIMIT 10
         `;
     }
@@ -243,7 +243,11 @@ const top10CategoriesDbRequest = async (targetDate= new Date(), targetDate2=fals
         }
     }
     for(let i = 0; i < listReturn.length; i++) {
-        listReturn[i].percentage = (listReturn[i].visits_num/total)*100;
+        if(total != 0) {
+            listReturn[i].percentage = (listReturn[i].visits_num/total)*100;
+        } else {
+            listReturn[i].percentage = 0;
+        }
     }
     return listReturn;
 }
@@ -562,7 +566,7 @@ exports.top10Categorias = async (req, res) => {
         const date1 = req.query.date_1;
         const date2 = req.query.date_2;
         const dataRes = await getTop10Categories(option, {init: date1, finish: date2});
-        res.status(200).send(dataRes);
+        res.status(200).send(dataRes.data);
     } catch(err) {
       res.status(500).send();
     }
