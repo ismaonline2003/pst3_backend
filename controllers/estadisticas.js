@@ -65,7 +65,7 @@ const top10ArticlesDbRequest = async (targetDate= new Date(), targetDate2=false)
         WHERE wp_statistics_pages.date = '${targetDateFormatted}' 
         AND wp_term_taxonomy.taxonomy = 'category'
         AND wp_statistics_pages.id != 0
-        AND wp_terms.term_id IN ${validCategIds.tuple_str}
+       /* AND wp_terms.term_id IN ${validCategIds.tuple_str}*/
         LIMIT 10
     `;
     if(targetDate2) {
@@ -81,17 +81,34 @@ const top10ArticlesDbRequest = async (targetDate= new Date(), targetDate2=false)
             INNER JOIN wp_term_relationships ON wp_term_relationships.object_id = wp_posts.ID
             INNER JOIN wp_term_taxonomy ON wp_term_taxonomy.term_taxonomy_id = wp_term_relationships.term_taxonomy_id
             INNER JOIN wp_terms ON wp_terms.term_id = wp_term_taxonomy.term_id
-            WHERE wp_statistics_pages.date BETWEEN '${targetDateFormatted}' AND '${targetDate2Formatted}' 
+            WHERE wp_statistics_pages.date BETWEEN '${targetDate2Formatted}' AND '${targetDateFormatted}' 
             AND wp_term_taxonomy.taxonomy = 'category'
             AND wp_statistics_pages.id != 0
-            AND wp_terms.term_id IN ${validCategIds.tuple_str}
+            /*AND wp_terms.term_id IN ${validCategIds.tuple_str}*/
             LIMIT 10
         `;
     }
 
     const request = await db.sequelize.query(query);
+    let total = 0;
+
     if(request[0].length > 0) {
-        listReturn = request[0];
+        for(let i = 0; i < request[0].length; i++) {
+            let record = request[0][i];
+            if(!record.visits_num) {
+                record.visits_num = "0";
+            }
+            record.visits_num = parseInt(record.visits_num);
+            total += record.visits_num;
+            listReturn.push(record);
+        }
+    }
+    for(let i = 0; i < listReturn.length; i++) {
+        if(total != 0) {
+            listReturn[i].percentage = (listReturn[i].visits_num/total)*100;
+        } else {
+            listReturn[i].percentage = 0;
+        }
     }
     return listReturn;
 }
@@ -554,7 +571,7 @@ exports.top10Articulos = async (req, res) => {
         const date1 = req.query.date_1;
         const date2 = req.query.date_2;
         const dataRes = await getTop10Articles(option, {init: date1, finish: date2});
-        res.status(200).send(dataRes);
+        res.status(200).send(dataRes.data);
     } catch(err) {
       res.status(500).send();
     }
