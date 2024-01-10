@@ -447,19 +447,21 @@ exports.create = async (req, res) => {
       id_seccion: bodyData.id_seccion,
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion,
-      miniatura_filename: "",
-      id_profesor: bodyData.id_profesor
+      miniatura_filename: ""
     }
 
-    if(isNaN(bodyData.id_profesor)) {
-      res.status(500).send({message: "El profesor seleccionado no existe"});
-      return;
-    }
-
-    const profesorSearch = await db.profesor.findAll({where: {id: bodyData.id_profesor}, limit:1});
-    if(profesorSearch.length === 0) {
-      res.status(500).send({message: "El profesor seleccionado no existe"});
-      return;
+    if(bodyData.id_profesor) {
+      if(isNaN(bodyData.id_profesor)) {
+        res.status(500).send({message: "El profesor seleccionado no existe"});
+        return;
+      }
+  
+      const profesorSearch = await db.profesor.findAll({where: {id: bodyData.id_profesor}, limit:1});
+      if(profesorSearch.length === 0) {
+        res.status(500).send({message: "El profesor seleccionado no existe"});
+        return;
+      }
+      bodyData.id_profesor = bodyData.id_profesor;
     }
 
     if(validations.status != 'success') {
@@ -585,21 +587,23 @@ exports.update = async (req, res) => {
     let updateData = {
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion,
-      id_seccion: bodyData.id_seccion,
-      id_profesor: bodyData.id_profesor
+      id_seccion: bodyData.id_seccion
     }
 
-    if(isNaN(bodyData.id_profesor)) {
-      res.status(500).send({message: "El profesor seleccionado no existe"});
-      return;
-    }
+    if(bodyData.id_profesor) {
+      
+      if(isNaN(bodyData.id_profesor)) {
+        res.status(500).send({message: "El profesor seleccionado no existe"});
+        return;
+      }
 
-    const profesorSearch = await db.profesor.findAll({where: {id: bodyData.id_profesor}, limit:1});
-    if(profesorSearch.length === 0) {
-      res.status(500).send({message: "El profesor seleccionado no existe"});
-      return;
+      const profesorSearch = await db.profesor.findAll({where: {id: bodyData.id_profesor}, limit:1});
+      if(profesorSearch.length === 0) {
+        res.status(500).send({message: "El profesor seleccionado no existe"});
+        return;
+      }
+      bodyData.id_profesor = bodyData.id_profesor;
     }
-
     
     let filesInitVal = 0;
     const validations= await recordUpdateValidations(bodyData);
