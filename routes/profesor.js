@@ -8,6 +8,8 @@ module.exports = app => {
     router.post("/",  upload.single('foto_carnet'), profesor.create);
     
     router.get("/", profesor.findAll);
+
+    router.get("/api/profesorPorNombre/:val", profesor.profesorPorNombre);
   
     router.get("/:id", profesor.findOne);
   

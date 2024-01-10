@@ -14,6 +14,31 @@ const processImage = (file) => {
   return filename;
 }
 
+exports.profesorPorNombre = async (req, res) => {
+  try {
+    let query = `
+        SELECT 
+          pro.id AS id,
+          CONCAT(p.name, ' ', p.lastname, ' - CI: ', p.ci_type, '-', p.ci) AS name
+      FROM profesor AS pro
+      INNER JOIN person AS p ON p.id = pro.id_persona
+      WHERE CONCAT(p.name, ' ', p.lastname, ' - CI: ', p.ci_type, '-', p.ci) LIKE '%${req.params.val}%' 
+      AND pro.deleted_at IS NULL 
+      AND p.deleted_at IS NULL
+    `;
+    let recordsSearch = await db.sequelize.query(query);
+    if(recordsSearch[0].length > 0) {
+      res.status(200).send(recordsSearch[0]);
+      return;
+    }
+    res.status(404).send();
+  } catch(err) {
+    console.log(err);
+    res.status(500).send();
+  }
+  return false;
+}
+
 exports.create = async (req, res) => {
   let bodyData = JSON.parse(req.body.data);
   let fotoCarnet = req.file;

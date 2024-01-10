@@ -24,7 +24,8 @@ const searchInclude = {include: [
       }
     ]
   },
-  {model: db.proyecto_archivo}
+  {model: db.proyecto_archivo},
+  {model: db.profesor, include: [{model: db.person}]}
 ]}
 
 
@@ -446,8 +447,21 @@ exports.create = async (req, res) => {
       id_seccion: bodyData.id_seccion,
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion,
-      miniatura_filename: ""
+      miniatura_filename: "",
+      id_profesor: bodyData.id_profesor
     }
+
+    if(isNaN(bodyData.id_profesor)) {
+      res.status(500).send({message: "El profesor seleccionado no existe"});
+      return;
+    }
+
+    const profesorSearch = await db.profesor.findAll({where: {id: bodyData.id_profesor}, limit:1});
+    if(profesorSearch.length === 0) {
+      res.status(500).send({message: "El profesor seleccionado no existe"});
+      return;
+    }
+
     if(validations.status != 'success') {
       res.status(400).send({message: validations.msg});
     }
@@ -530,7 +544,7 @@ exports.findAll = async (req, res) => {
             }
         }
     }
-    let searchConfig = {include: [{model: Seccion}], limit:limit};
+    let searchConfig = {include: [{model: Seccion}, {model: db.profesor}], limit:limit};
     if(!['seccion', 'trayecto', 'pnf'].includes(parameter)) {
         searchConfig['where'] = condition;
     } else {
@@ -571,8 +585,22 @@ exports.update = async (req, res) => {
     let updateData = {
       nombre: bodyData.nombre,
       descripcion: bodyData.descripcion,
-      id_seccion: bodyData.id_seccion
+      id_seccion: bodyData.id_seccion,
+      id_profesor: bodyData.id_profesor
     }
+
+    if(isNaN(bodyData.id_profesor)) {
+      res.status(500).send({message: "El profesor seleccionado no existe"});
+      return;
+    }
+
+    const profesorSearch = await db.profesor.findAll({where: {id: bodyData.id_profesor}, limit:1});
+    if(profesorSearch.length === 0) {
+      res.status(500).send({message: "El profesor seleccionado no existe"});
+      return;
+    }
+
+    
     let filesInitVal = 0;
     const validations= await recordUpdateValidations(bodyData);
     let errorMessage = "Ocurrió un error inesperado al intentar actualizar el registro.";
