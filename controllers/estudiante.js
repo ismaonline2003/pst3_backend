@@ -63,11 +63,19 @@ exports.create = async (req, res) => {
           nro_expediente: bodyData.nro_expediente,
           year_ingreso: bodyData.year_ingreso
         }
-        Estudiante.create(estudianteData).then(data => {
-            estudianteData.person = personData.dataValues;
-            estudianteData.id = data.dataValues.id;
-            functions.createActionLogMessage(db, "Estudiante", req.headers.authorization, estudianteData.id);
-            res.send(estudianteData);
+        Estudiante.create(estudianteData).then((data) => {
+          let inscripciones = [];
+          estudianteData.person = personData.dataValues;
+          estudianteData.id = data.dataValues.id;
+          if(bodyData.secciones.length > 0) {
+            bodyData.secciones.map(async (item) => {
+              let inscripcionCreate = await db.inscripcion.create({estudiante_id: estudianteData.id, seccion_id: item.id});
+              inscripciones.push(inscripcionCreate);
+            }) 
+          }
+          estudianteData.inscripcions = inscripciones;
+          functions.createActionLogMessage(db, "Estudiante", req.headers.authorization, estudianteData.id);
+          res.send(estudianteData);
         }).catch(err => {
             res.status(500).send({
               message: errorMessage
@@ -137,7 +145,12 @@ exports.findAll = (req, res) => {
 
 exports.findOne = (req, res) => {
   const id = req.params.id;
-  Estudiante.findOne({include: [{model: db.person}], where: {id: id}, paranoid: true})
+  Estudiante.findOne({include: [
+      {model: db.person}, 
+      {model: db.inscripcion, include: [
+        {model: db.seccion, include: [{model: db.carrera_universitaria}
+      ]}]}
+    ], where: {id: id}, paranoid: true})
     .then(data => {
       if (data) {
         res.send(data);
@@ -231,6 +244,20 @@ exports.update = async (req, res) => {
     } else {
       Estudiante.update({nro_expediente: bodyData.nro_expediente, year_ingreso: bodyData.year_ingreso}, {where: { id: id }})
       .then(num => {
+          let inscripciones_deleted = [];
+          let inscripciones_create = [];
+          if(bodyData.nuevas_secciones.length > 0) {
+            bodyData.nuevas_secciones.map(async (item) => {
+              let inscripcionCreate = await db.inscripcion.create({estudiante_id: id, seccion_id: item.id});
+              inscripciones_create.push(inscripcionCreate);
+            }) 
+          }
+          if(bodyData.secciones_eliminar.length > 0) {
+            bodyData.secciones_eliminar.map(async (item) => {
+              await db.inscripcion.destroy({where: {id: item.id}});
+              inscripciones_deleted.push(item.id);
+            }) 
+          }
           if(num == 1) {
             functions.updateActionLogMessage(db, "Estudiante", req.headers.authorization, id);
             res.send({message: "El estudiante fue actualizado satisfactoriamente!!"});
@@ -246,8 +273,21 @@ exports.update = async (req, res) => {
   });
 };
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res) => {
   const id = req.params.id;
+  try {
+    const estudianteSearch = await Estudiante.findAll({where: {id: id}, include: [{model: db.inscripcion}], limit:1});
+    if(estudianteSearch.length > 0) {
+      estudianteSearch[0].dataValues.inscripcions.map(async (item) => {
+        await db.inscripcion.destroy({where: {id: item.id}});
+      }) 
+    }
+  } catch(err) {
+    res.status(500).send({
+      message: "No se pudo eliminar al estudiante. Esto es debido a que una o varias inscripciones estan asociadas a algun registro."
+    });
+    return
+  }
   Estudiante.destroy({
     where: { id: id },
     individualHooks: true

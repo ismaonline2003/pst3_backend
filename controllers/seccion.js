@@ -94,6 +94,35 @@ exports.create = async (req, res) => {
     });
 };
 
+exports.seccionPorNombre = async(req, res) => {
+  try {
+    let query = `
+        SELECT 
+        s.id AS id,
+        CONCAT(s.nombre,' - Trayecto: ', s.trayecto, ' - PNF: ', c_u.nombre_pnf,' - Año: ', s.year) AS name
+      FROM seccion AS s 
+      INNER JOIN carrera_universitaria AS c_u ON c_u.id = s.pnf_id
+      WHERE CONCAT(s.nombre, ' - Trayecto: ', s.trayecto, ' - PNF: ', c_u.nombre_pnf, ' - Año: ', s.year) LIKE '%${req.params.val}%' 
+      OR s.nombre LIKE '%${req.params.val}%' 
+      OR s.trayecto LIKE '%${req.params.val}%' 
+      OR c_u.nombre_pnf LIKE '%${req.params.val}%' 
+      OR s.year LIKE '%${req.params.val}%' 
+      AND s.deleted_at IS NULL 
+      AND c_u.deleted_at IS NULL
+    `;
+    let recordsSearch = await db.sequelize.query(query);
+    if(recordsSearch[0].length > 0) {
+    res.status(200).send(recordsSearch[0]);
+    return false;
+    }
+    res.status(404).send();
+  } catch(err) {
+    console.log(err);
+    res.status(500).send();
+  }
+  return false;
+}
+
 exports.findAll = (req, res) => {
   const parameter = req.query.parameter;
   const parameter2 = req.query.parameter_2;

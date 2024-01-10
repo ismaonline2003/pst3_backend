@@ -21,7 +21,7 @@ module.exports = (sequelize, Sequelize, Estudiante, Seccion) => {
               model: Seccion,
               key: 'id'
             }
-        },
+        }
     }, 
     {
       tableName: 'inscripcion',

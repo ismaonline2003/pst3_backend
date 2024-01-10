@@ -4,6 +4,8 @@ module.exports = app => {
     var router = require("express").Router();
     
     router.post("/", seccion.create);
+
+    router.get("/api/seccionPorNombre/:val", seccion.seccionPorNombre);
     
     router.get("/", seccion.findAll);
   
