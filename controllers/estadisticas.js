@@ -609,8 +609,7 @@ exports.tendenciaTraficoDiario = async (req, res) => {
     }
 };
 
-exports.visitasWebGeneral = async (req, res) => {
-    
+exports.visitasWebGeneral = async (req, res) => { 
   try {
             /*
             -today
@@ -726,14 +725,14 @@ const getVisitasRadio = async (period, periodDates) => {
 
         if(period === 'today') {
             let todayRes = await getVisitorsAndVisitsRadioDbRequest(currentDate);
-            res.data.push([currentDate.toISOString(), todayRes]);
+            res.data.push([moment(currentDate).utc().format('YYYY-MM-DD'), todayRes]);
             return res;
         }
         if(period === 'yesterday') {
             let todayRes = await getVisitorsAndVisitsRadioDbRequest(currentDate);
             let yesterdayRes = await getVisitorsAndVisitsRadioDbRequest(yesterday);
-            res.data.push([currentDate.toISOString(), todayRes]);
-            res.data.push([yesterday.toISOString(), yesterdayRes]);
+            res.data.push([moment(currentDate).utc().format('YYYY-MM-DD'), todayRes]);
+            res.data.push([moment(yesterday).utc().format('YYYY-MM-DD'), yesterdayRes]);
             return res;
         }
 
@@ -795,10 +794,9 @@ const getVisitasRadio = async (period, periodDates) => {
             
             for(let i = 0; i < diff; i++) {
                 let targetDate = new Date(periodDates.init);
-                let targetDateStr = targetDate.toISOString();
                 targetDate = targetDate.setHours(targetDate.getHours()-(24*i));
                 let targetDateRes = await getVisitorsAndVisitsRadioDbRequest(targetDate);
-                res.data.push([targetDateStr, targetDateRes]);
+                res.data.push([moment(targetDate).utc().format('YYYY-MM-DD'), targetDateRes]);
             }
             return res;
         }
@@ -806,9 +804,8 @@ const getVisitasRadio = async (period, periodDates) => {
         for(let i = 0; i < days; i++) {
             let targetDate = new Date();
             targetDate.setHours(targetDate.getHours()-(24*i));
-            let targetDateStr = targetDate.toISOString();
             let targetDateRes = await getVisitorsAndVisitsRadioDbRequest(targetDate);
-            res.data.push([targetDateStr, targetDateRes]);
+            res.data.push([moment(targetDate).utc().format('YYYY-MM-DD'), targetDateRes]);
         }
     } catch(err) {
         console.log(err)
@@ -890,14 +887,14 @@ const getSuscripcionesRadio = async (period, periodDates) => {
 
         if(period === 'today') {
             let todayRes = await suscripcionesRadioDdbRequest(currentDate);
-            res.data.push([currentDate.toISOString(), todayRes]);
+            res.data.push([moment(currentDate).utc().format('YYYY-MM-DD'), todayRes]);
             return res;
         }
         if(period === 'yesterday') {
             let todayRes = await suscripcionesRadioDdbRequest(currentDate);
             let yesterdayRes = await suscripcionesRadioDdbRequest(yesterday);
-            res.data.push([currentDate.toISOString(), todayRes]);
-            res.data.push([yesterday.toISOString(), yesterdayRes]);
+            res.data.push([moment(currentDate).utc().format('YYYY-MM-DD'), todayRes]);
+            res.data.push([moment(yesterday).utc().format('YYYY-MM-DD'), yesterdayRes]);
             return res;
         }
 
@@ -959,10 +956,9 @@ const getSuscripcionesRadio = async (period, periodDates) => {
             
             for(let i = 0; i < diff; i++) {
                 let targetDate = new Date(periodDates.init);
-                let targetDateStr = targetDate.toISOString();
                 targetDate = targetDate.setHours(targetDate.getHours()-(24*i));
                 let targetDateRes = await suscripcionesRadioDdbRequest(targetDate);
-                res.data.push([targetDateStr, targetDateRes]);
+                res.data.push([moment(targetDate).utc().format('YYYY-MM-DD'), targetDateRes]);
             }
             return res;
         }
@@ -970,9 +966,8 @@ const getSuscripcionesRadio = async (period, periodDates) => {
         for(let i = 0; i < days; i++) {
             let targetDate = new Date();
             targetDate.setHours(targetDate.getHours()-(24*i));
-            let targetDateStr = targetDate.toISOString();
             let targetDateRes = await suscripcionesRadioDdbRequest(targetDate);
-            res.data.push([targetDateStr, targetDateRes]);
+            res.data.push([moment(targetDate).utc().format('YYYY-MM-DD'), targetDateRes]);
         }
     } catch(err) {
         console.log(err)
@@ -994,5 +989,23 @@ exports.suscripcionesRadio = async (req, res) => {
         res.status(200).send(dataRes);
     } catch(err) {
       res.status(500).send();
+    }
+};
+
+exports.radioOnlineGeneral = async (req, res) => {
+    try {
+        const dataRes = {status: 'success', data: {}, msg: ''};
+        const visitas_radio = await getVisitasRadio('lastWeek');
+        const suscripciones_radio = await getSuscripcionesRadio('lastWeek');
+
+        if(visitas_radio.status === 'success') {
+            dataRes.data.visitas_radio = visitas_radio.data.reverse();
+        }
+        if(suscripciones_radio.status === 'success') {
+            dataRes.data.suscripciones_radio = suscripciones_radio.data.reverse();
+        }
+        res.status(200).send(dataRes);
+    } catch(err) {
+    res.status(500).send();
     }
 };

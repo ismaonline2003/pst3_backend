@@ -10,6 +10,7 @@ module.exports = app => {
     router.get("/top10Articulos", estadisticas.top10Articulos);
 
     //radio
+    router.get("/radioOnlineGeneral", estadisticas.radioOnlineGeneral);
     router.get("/visitasRadio", estadisticas.visitasRadio);
     router.get("/suscripcionesRadio", estadisticas.suscripcionesRadio);
   
