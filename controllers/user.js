@@ -1,3 +1,4 @@
+const fs = require('fs');
 const db = require("../models");
 const User = db.user;
 const UserRequest = db.user_request;
@@ -217,7 +218,6 @@ const userCreateValidations = async (data) => {
 
   return objReturn;
 }
-
 
 const passwordValidations = (password, passwordRepeated) => {
   let objReturn = {status: 'success', message: '', data: {}};
@@ -453,6 +453,15 @@ const userResetPasswordRequest = (userData, requestID, requestHash) => {
       console.log("Email sent successfully");
     }
   });
+}
+
+const processImage = (file) => {
+  const fileRead = fs.readFileSync(file.path);
+  const filename = functions.getFileName(file);
+  const filePath = `src/fileUploads/${filename}`;
+  fs.writeFileSync(filePath, fileRead);
+  fs.unlinkSync(file.path);
+  return filename;
 }
 
 exports.userVerify = async (req, res) => {
@@ -703,19 +712,23 @@ exports.update = async (req, res) => {
   const id = req.params.id;
   const defaultErrorMessage = "Ocurrió un error inesperado durante la actualización del usuario... Vuelva a intentarlo mas tarde";
   const validations = await userUpdateValidations(req.body);
+
   if(validations.status != 'success') {
     res.status(400).send({message: validations.message});
     return;
   }
+  
   const userSearch = await User.findAll({where: {id: {[Op.eq]: id} }});
   let bodyData = {
     login: req.body.login,
     rol: req.body.rol
   }
+
   if(bodyData.login != userSearch[0].dataValues.login) {
     bodyData.verifiedDate = null;
     bodyData.verifiedToken = null;
   }
+
   //cambio de contraseña
   if(req.body.change_password) {
     await bcrypt.genSalt(10, (err, salt) => {
@@ -754,6 +767,51 @@ exports.update = async (req, res) => {
     });
   }
 };
+
+exports.myProfile = async(req, res) => {
+  const defaultErrorMessage = "Ocurrió un error inesperado durante la actualización del usuario... Vuelva a intentarlo mas tarde";
+  const id = req.params.id;
+  const body = JSON.parse(req.body.data);
+  const fotoCarnet = req.file;
+  let fotoCarnetFilename = "";
+  try {
+
+    const validations = functions.personaFieldsValidations(body);
+
+    if(validations.status != 'success') {
+      res.status(400).send({message: validations.msg});
+      return;
+    }
+
+    //actualizar foto carnet filename
+    if(fotoCarnet) {
+      if(fotoCarnet) {
+        fotoCarnetFilename = processImage(fotoCarnet);
+        body.foto_carnet_filename = fotoCarnetFilename;
+      } else {
+        body.foto_carnet_filename = "";
+      }
+    }
+
+    const userSearch = await db.user.findOne({where: {id: id}});
+    if(userSearch) {
+      const personUpdate = await db.person.update(body, {where: {id: userSearch.dataValues.person_id}});
+      if(personUpdate) {
+        if(personUpdate[0] === 1) {
+          res.status(200).send({message: "El usuario fue actualizado satisfactoriamente", foto_carnet_filename: fotoCarnetFilename});
+        } else {
+          res.status(400).send({message: defaultErrorMessage});
+          return;
+        }
+      }
+    }
+
+  } catch (err) {
+    res.status(500).send({message: defaultErrorMessage});
+    return;
+  }
+
+}
 
 // remove a User with the given id 
 exports.delete = (req, res) => {

@@ -1,7 +1,9 @@
 module.exports = app => {
+    const multer = require('multer');
     const users = require("../controllers/user.js");
     const functions = require('./functions');
     var router = require("express").Router();
+    const fileUpload = multer({ dest: 'src/fileUploads' });
   
     // add a new user
     router.post("/", functions.verifyToken, users.create);
@@ -18,6 +20,9 @@ module.exports = app => {
   
     // update an user
     router.put("/:id", functions.verifyToken, users.update);
+
+    //update my profile data
+    router.put("/api/myProfile/:id", fileUpload.single('foto_carnet'), functions.verifyToken, users.myProfile);
   
     // remove an user with id
     router.delete("/:id", functions.verifyToken, users.delete);
