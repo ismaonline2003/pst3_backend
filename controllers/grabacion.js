@@ -212,14 +212,62 @@ const processAudioFile = async () => {
     const currentDate = new Date();
     const audioName = `radio_emision_${currentDate.getTime()}.mp3`;
     const audioPath = `${childProcess_finalEmisionsPath}/${audioName}`;
-
     for(let i = 0; i < filesList.length; i++) {
+      let concatScript = "";
       concatFilesScript = `${concatFilesScript}${childProcess_audioPiecesPath}/${filesList[i]}`;
       if(i+1 != filesList.length) {
         concatFilesScript = `${concatFilesScript}|`;
       }
+      
+      if(i === 1) {
+        concatScript = `concat:${childProcess_audioPiecesPath}/${filesList[0]}|${childProcess_audioPiecesPath}/${filesList[1]}`;
+      } else if(i > 1) {
+        concatScript = `concat:${audioPath}|${childProcess_audioPiecesPath}/${filesList[i]}`;
+      }
+      if(concatScript) {
+        const child = childProcess.spawn(
+          ffmepg,
+          // note, args must be an array when using spawn
+          [
+              '-i',
+              concatScript,
+              '-acodec',
+              'copy',
+              audioPath
+          ]
+        );
+    
+        await child.on('error', () => {
+            // catches execution error (bad file)
+            console.log(`*** processAudioFile *** Error executing binary: ${ffmpegPath}`);
+        });
+    
+        await child.stdout.on('data', (data) => {
+            console.log('*** processAudioFile *** FFmpeg stdout', data.toString());
+        });
+    
+        await child.stderr.on('data', (data) => {
+            console.log(`*** concatOutputAudioToCurrentEmisionAudio *** ${data}`);
+        });
+    
+        await child.on('close', (code) => {
+            console.log(`*** processAudioFile *** Process exited with code: ${code}`);
+            if (code === 0) {
+              console.log(`*** processAudioFile *** FFmpeg finished successfully`);
+              /*
+              for(let i = 0; i < filesList.length; i++) {
+                fs.unlinkSync(`${fs_audioPiecesPath}/${filesList[i]}`);
+              }
+              fs.unlinkSync(fs_currentAudioFilePath);
+              fs.unlinkSync(fs_outputAudioFilePath);
+              */
+            } else {
+                console.log(`*** processAudioFile *** FFmpeg encountered an error, check the console output`);
+            }
+        });
+      }
     }
-
+    /*
     const child = childProcess.spawn(
       ffmepg,
       // note, args must be an array when using spawn
@@ -258,6 +306,7 @@ const processAudioFile = async () => {
             console.log(`*** processAudioFile *** FFmpeg encountered an error, check the console output`);
         }
     });
+    */
     return audioName;
   }
   return '';

@@ -22,6 +22,9 @@ module.exports = (sequelize, Sequelize, Proyecto) => {
       tipo:  {
         type: Sequelize.ENUM,
         values: ["IMG", "DOC"]
+      },
+      wordpress_id : {
+        type: Sequelize.INTEGER
       }
     }, 
     {

@@ -215,8 +215,10 @@ exports.findOne = (req, res) => {
 
 
 const getWordpressContent = (data) => {
+  /*
+        <img class="img-fluid wp-post-image" src="${wordpressConfig.external_backend_url}/${data.miniatura}" alt="" decoding="async"  style="width: 80% !important;">
+  */
   let wordpressContent = `
-    <img class="img-fluid wp-post-image" src="${wordpressConfig.external_backend_url}/${data.miniatura}" alt="" decoding="async"  style="width: 80% !important;">
     <article class="page-content-single small single">
       ${data.contenido}
     </article>
@@ -224,15 +226,37 @@ const getWordpressContent = (data) => {
   return wordpressContent;
 }
 
+const sendMiniaturaToWordpress = async(wp, data) => {
+  try {
+    let bodyData = {
+      status: 'publish'
+    };
+    const wordpressPostRes = await wp.media().file(`./src/fileUploads/${data.miniatura.replace('api/files/getFile/', '')}`).create(bodyData); 
+    return wordpressPostRes;
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
 const sendPostToWordpress = async(data) => {
   try {
     const wp = new WPAPI(wapi_config);
     let categories = [];
+    if(!data.miniatura_wordpress_id) {
+      const miniaturaWordpressId = await sendMiniaturaToWordpress(wp, data);
+      if(miniaturaWordpressId) {
+        await db.noticia.update({miniatura_wordpress_id: miniaturaWordpressId.id}, {where: {id: data.id}});
+        data.miniatura_wordpress_id = miniaturaWordpressId.id;
+      }
+    }
+
     if(data.categoria_noticium.wordpress_id) {
       categories = [data.categoria_noticium.wordpress_id];
     }
     const wordpressContent = getWordpressContent(data);
     const wordpressPostRes = await wp.posts().create({
+        featured_media: data.miniatura_wordpress_id,
         // "title" and "content" are the only required properties
         title: data.nombre,
         content: wordpressContent,
@@ -251,18 +275,26 @@ const sendPostToWordpress = async(data) => {
 
 const updateInWordpress = async(data) => {
   try {
-      const wp = new WPAPI(wapi_config);
       if(data.wordpress_id) {
         const wp = new WPAPI(wapi_config);
         const wordpressContent = getWordpressContent(data);
 
         let categories = [];
 
+        if(!data.miniatura_wordpress_id) {
+          const miniaturaWordpressId = await sendMiniaturaToWordpress(wp, data);
+          if(miniaturaWordpressId) {
+            await db.noticia.update({miniatura_wordpress_id: miniaturaWordpressId.id}, {where: {id: data.id}});
+            data.miniatura_wordpress_id = miniaturaWordpressId.id;
+          }
+        }
+
         if(data.categoria_noticia.wordpress_id) {
           categories = [data.categoria_noticia.wordpress_id];
         }
 
         const wordpressRes = await wp.posts().id(data.wordpress_id).update({
+          featured_media: data.miniatura_wordpress_id,
           title: data.nombre,
           content: wordpressContent,
           categories: categories,
@@ -332,6 +364,7 @@ exports.update = async (req, res) => {
     }
     if(bodyData.miniaturaUpdated) {
       updateData.miniatura = contentPrepared.miniaturaPath;
+      updateData.miniatura_wordpress_id = "";
     }
 
     Noticia.update(updateData, {where: {id: bodyData.id}})

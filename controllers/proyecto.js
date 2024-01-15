@@ -200,7 +200,7 @@ const getFileName = (file) => {
 
 const createProjectFiles = async (projectId, fileList, files, type, transaction, initVal) => {
     let objReturn = {status: 'success', msg: '', data: []};
-    for(let i = initVal; i < fileList.length; i++) {
+    for(let i = 0; i < fileList.length; i++) {
         let item = fileList[i];
         let file = files[item.index];
         const fileRead = fs.readFileSync(file.path);
@@ -288,14 +288,98 @@ const deleteProjectFiles = async (projectId, fileList, type, transaction) => {
     return objReturn;
 }
 
-const getPlantillaContent = (data) => {
+
+const sendMediaFileToWordpress = async(wp, data) => {
+  try {
+    let bodyData = {
+      status: 'publish'
+    };
+    if(data.nombre) {
+      bodyData.title = data.nombre;
+      bodyData.alt_text = data.nombre;
+    }
+    if(data.description) {
+      bodyData.caption = data.description;
+      bodyData.caption = data.description;
+    }
+    const wordpressPostRes = await wp.media().file(`${data.url}`).create(bodyData); 
+    return wordpressPostRes;
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const updateMediaFileToWordpress = async(wp, data) => {
+  try {
+    let bodyData = {
+      status: 'publish'
+    };
+    if(data.nombre) {
+      bodyData.title = data.nombre;
+      bodyData.alt_text = data.nombre;
+    }
+    if(data.description) {
+      bodyData.caption = data.description;
+      bodyData.caption = data.description;
+    }
+    await wp.media().id(data.wordpress_id).update(bodyData); 
+    const mediaData = await wp.media().id(data.wordpress_id);
+    return mediaData;
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const sendMiniaturaToWordpress = async(wp, data) => {
+  try {
+    let bodyData = {
+      status: 'publish'
+    };
+    const wordpressPostRes = await wp.media().file(`./src/fileUploads/${data.miniatura_filename}`).create(bodyData); 
+    return wordpressPostRes;
+  } catch(err) {
+    console.log(err);
+  }
+  return false;
+}
+
+const getPlantillaContent = (data, imgs) => {
   let integrantesProyectoHtml = "";
   data.integrante_proyectos.map((i) => {
     integrantesProyectoHtml += `<li><span style="color: #808080">${i.inscripcion.estudiante.person.name} ${i.inscripcion.estudiante.person.lastname}</span></li>`;
   });
   let proyectoArchivosImgHTML = "";
-  data.proyecto_archivos.filter(p_a => p_a.tipo === 'IMG').map((p_a) => {
+  imgs.map((p_a) => {
     let proyectoArchivoUrl =  `${wordpressConfig.img_endpoint}/${p_a.url.replace('src/fileUploads/', '')}`;
+    proyectoArchivosImgHTML += `
+      <figure class="gallery-item">
+        <div class="gallery-icon landscape">
+          <a
+            data-elementor-open-lightbox="yes"
+            data-elementor-lightbox-title="${p_a.nombre}"
+            href="${p_a.wordpress_url}"
+            ><img
+              loading="lazy"
+              decoding="async"
+              width="640"
+              height="427"
+              src="${p_a.wordpress_url}"
+              class="attachment-large size-large"
+              alt=""
+              aria-describedby="gallery-1-${p_a.wordpress_id}"
+          /></a>
+        </div>
+        <figcaption
+          class="wp-caption-text gallery-caption"
+          id="gallery-1-${p_a.wordpress_id}"
+        >
+          ${p_a.nombre}
+        </figcaption>
+      </figure>
+    `; 
+    /*
     proyectoArchivosImgHTML += `
         <figure class="gallery-item" style="width: 250px !important;">
           <div class="gallery-icon landscape" style="text-align: center !important; width: 100% !important;">
@@ -312,6 +396,7 @@ const getPlantillaContent = (data) => {
           </figcaption>
         </figure>
     `
+    */
   });
   let proyectoArchivosDocHTML = "";
   data.proyecto_archivos.filter(p_a => p_a.tipo === 'DOC').map((p_a) => {
@@ -320,11 +405,13 @@ const getPlantillaContent = (data) => {
       <a href="${proyectoArchivoUrl}" target="_blank" rel="noopener" data-wplink-url-error="true">${p_a.nombre}</a>
     `
   })
-  let content = `
+  /*
     <div class="elementor-widget-container w-100 text-center">
       <img class="img-fluid wp-post-image" src="${wordpressConfig.img_endpoint}/${data.miniatura_filename}" alt="" decoding="async"  style="width: 80% !important;">
     </div>
     <br/>
+  */
+  let content = `
     <div class="elementor-widget-container" style="color: #808080 !important;">
       <h3><span style="color: #6ec1e4">Autores del Proyecto</span></h3>
       <ul>
@@ -359,11 +446,42 @@ const getPlantillaContent = (data) => {
   return content;
 }
 
-const sendPostToWordpress = async(data) => {
+const sendPostToWordpress = async(db, t, data) => {
   try {
     const wp = new WPAPI(wapi_config);
-    const wordpressContent = getPlantillaContent(data);
+    //subir miniatura
+    if(!data.miniatura_wordpress_id) {
+      const miniaturaWordpressId = await sendMiniaturaToWordpress(wp, data);
+      if(miniaturaWordpressId) {
+        await db.proyecto.update({miniatura_wordpress_id: miniaturaWordpressId.id}, {where: {id: data.id}, transaction: t});
+        data.miniatura_wordpress_id = miniaturaWordpressId.id;
+      }
+    }
+
+    //subir imagenes
+    const imgsWithoutWordrpessId = data.proyecto_archivos.filter(item => item.tipo === 'IMG' && !item.wordpress_id);
+    for(let i = 0; i < imgsWithoutWordrpessId.length; i++) {
+      const uploadMediaFile = await sendMediaFileToWordpress(wp, imgsWithoutWordrpessId[i]);
+      if(uploadMediaFile) {
+        await db.proyecto_archivo.update({wordpress_id: uploadMediaFile.id}, {where: {id: imgsWithoutWordrpessId[i].id}, transaction: t});
+        imgsWithoutWordrpessId[i].wordpress_id = uploadMediaFile.id;
+      }
+    }
+
+    //actualizar imagenes
+    const imgsWithWordrpessId = data.proyecto_archivos.filter(item => item.tipo === 'IMG' && item.wordpress_id);
+    for(let i = 0; i < imgsWithWordrpessId.length; i++) {
+      const mediaData = await updateMediaFileToWordpress(wp, imgsWithWordrpessId[i]);
+      if(mediaData) {
+        imgsWithWordrpessId[i].wordpress_url = mediaData.source_url;
+      }
+    }
+
+    const proyectoArchivos = [...imgsWithoutWordrpessId, ...imgsWithWordrpessId];
+
+    const wordpressContent = getPlantillaContent(data, proyectoArchivos);
     const wordpressPostRes = await wp.posts().create({
+        featured_media: data.miniatura_wordpress_id,
         // "title" and "content" are the only required properties
         title: data.nombre,
         content: wordpressContent,
@@ -380,12 +498,43 @@ const sendPostToWordpress = async(data) => {
   return false;
 }
 
-const updateInWordpress = async(data) => {
+const updateInWordpress = async(db, t, data) => {
   try {
       if(data.wordpress_id) {
         const wp = new WPAPI(wapi_config);
-        const wordpressContent = getPlantillaContent(data);
+        //subir miniatura
+        if(!data.miniatura_wordpress_id) {
+          const miniaturaWordpressId = await sendMiniaturaToWordpress(wp, data);
+          if(miniaturaWordpressId) {
+            await db.proyecto.update({miniatura_wordpress_id: miniaturaWordpressId.id}, {where: {id: data.id}});
+            data.miniatura_wordpress_id = miniaturaWordpressId.id;
+          }
+        }
+
+        //subir imagenes
+        const imgsWithoutWordrpessId = data.proyecto_archivos.filter(item => item.tipo === 'IMG' && !item.wordpress_id);
+        for(let i = 0; i < imgsWithoutWordrpessId.length; i++) {
+          const uploadMediaFile = await sendMediaFileToWordpress(wp, imgsWithoutWordrpessId[i]);
+          if(uploadMediaFile) {
+            await db.proyecto_archivo.update({wordpress_id: uploadMediaFile.id}, {where: {id: imgsWithoutWordrpessId[i].id}});
+            imgsWithoutWordrpessId[i].wordpress_id = uploadMediaFile.id;
+          }
+        }
+
+        //actualizar imagenes
+        const imgsWithWordrpessId = data.proyecto_archivos.filter(item => item.tipo === 'IMG' && item.wordpress_id);
+        for(let i = 0; i < imgsWithWordrpessId.length; i++) {
+          const mediaData = await updateMediaFileToWordpress(wp, imgsWithWordrpessId[i]);
+          if(mediaData) {
+            imgsWithWordrpessId[i].wordpress_url = mediaData.source_url;
+          }
+        }
+
+        const proyectoArchivos = [...imgsWithoutWordrpessId, ...imgsWithWordrpessId];
+
+        const wordpressContent = getPlantillaContent(data, proyectoArchivos);
         const wordpressRes = await wp.posts().id(data.wordpress_id).update({
+          featured_media: data.miniatura_wordpress_id,
           title: data.nombre,
           content: wordpressContent,
           categories: [wordpressConfig.categoria_noticia_proyecto_id],
@@ -618,6 +767,7 @@ exports.update = async (req, res) => {
       const miniaturaFilename = getMiniaturaFilename(req.files[0]);
       if(miniaturaFilename) {
         updateData.miniatura_filename = miniaturaFilename;
+        updateData.miniatura_wordpress_id = "";
         filesInitVal = 1;
       }
     }
@@ -680,7 +830,7 @@ exports.update = async (req, res) => {
 
         if(bodyData.post && !proyectoSearch.dataValues.wordpress_id) {
           //crear
-          const wordpressId = await sendPostToWordpress(proyectoSearch.dataValues);
+          const wordpressId = await sendPostToWordpress(db, t, proyectoSearch.dataValues);
           if(!wordpressId) {
             throw new Error(errorMessage);
           }
@@ -699,7 +849,7 @@ exports.update = async (req, res) => {
           //actualizar
           await t.commit();
           proyectoSearch = await Proyecto.findOne({...searchInclude, where: {id: bodyData.id}});
-          const wordpressRes = updateInWordpress(proyectoSearch.dataValues);
+          const wordpressRes = updateInWordpress(db, t, proyectoSearch.dataValues);
           if(!wordpressRes) {
             throw new Error(errorMessage);
           }

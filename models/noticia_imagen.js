@@ -6,6 +6,9 @@ module.exports = (sequelize, Sequelize, Noticia) => {
         },
         file: {
             type: Sequelize.STRING
+        },
+        wordpress_id: {
+            type: Sequelize.INTEGER
         }
     }, 
     {

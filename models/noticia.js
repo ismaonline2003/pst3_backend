@@ -27,6 +27,9 @@ module.exports = (sequelize, Sequelize, User, Categoria) => {
       },
       wordpress_id: {
         type: Sequelize.INTEGER
+      },
+      miniatura_wordpress_id: {
+        type: Sequelize.INTEGER
       }
     }, 
     {

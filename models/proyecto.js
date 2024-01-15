@@ -22,6 +22,9 @@ module.exports = (sequelize, Sequelize, Seccion, Profesor) => {
       },
       wordpress_id: {
         type: Sequelize.INTEGER
+      },
+      miniatura_wordpress_id: {
+        type: Sequelize.INTEGER
       }
     }, 
     {
