@@ -109,17 +109,19 @@ exports.personaFieldsValidations = (data) => {
    }
 
    //mobile validations
-   if(whiteSpacesRegEx.test(data.mobile)) {
-       objReturn = {status: 'error', msg: 'El número de telefono móvil no puede contener espacios en blanco.'}
-       return objReturn;
-   }
-   if(data.mobile.match(lettersRegEx)) {
-       objReturn = {status: 'error', msg: 'El número de telefono móvil no puede contener letras.'}
-       return objReturn;
-   }
-   if(data.mobile.length > 15) {
-       objReturn = {status: 'error', msg: 'El número de telefono móvil no puede superar los 15 digitos.'}
-       return objReturn;
+   if(data.mobile) {
+        if(whiteSpacesRegEx.test(data.mobile)) {
+            objReturn = {status: 'error', msg: 'El número de telefono móvil no puede contener espacios en blanco.'}
+            return objReturn;
+        }
+        if(data.mobile.match(lettersRegEx)) {
+            objReturn = {status: 'error', msg: 'El número de telefono móvil no puede contener letras.'}
+            return objReturn;
+        }
+        if(data.mobile.length > 15) {
+            objReturn = {status: 'error', msg: 'El número de telefono móvil no puede superar los 15 digitos.'}
+            return objReturn;
+        }
    }
    
    return objReturn;
