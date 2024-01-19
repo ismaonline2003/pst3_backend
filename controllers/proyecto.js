@@ -338,6 +338,7 @@ const sendMiniaturaToWordpress = async(wp, data) => {
       status: 'publish'
     };
     const wordpressPostRes = await wp.media().file(`./src/fileUploads/${data.miniatura_filename}`).create(bodyData); 
+    console.log('wordpressPostRes', wordpressPostRes);
     return wordpressPostRes;
   } catch(err) {
     console.log(err);
@@ -452,8 +453,8 @@ const sendPostToWordpress = async(db, t, data) => {
     //subir miniatura
     if(!data.miniatura_wordpress_id) {
       const miniaturaWordpressId = await sendMiniaturaToWordpress(wp, data);
-      if(miniaturaWordpressId) {
-        await db.proyecto.update({miniatura_wordpress_id: miniaturaWordpressId.id}, {where: {id: data.id}, transaction: t});
+      if(miniaturaWordpressId && miniaturaWordpressId.id) {
+        await db.proyecto.update({miniatura_wordpress_id: miniaturaWordpressId.id}, {where: {id: data.id}});
         data.miniatura_wordpress_id = miniaturaWordpressId.id;
       }
     }
@@ -463,7 +464,7 @@ const sendPostToWordpress = async(db, t, data) => {
     for(let i = 0; i < imgsWithoutWordrpessId.length; i++) {
       const uploadMediaFile = await sendMediaFileToWordpress(wp, imgsWithoutWordrpessId[i]);
       if(uploadMediaFile) {
-        await db.proyecto_archivo.update({wordpress_id: uploadMediaFile.id}, {where: {id: imgsWithoutWordrpessId[i].id}, transaction: t});
+        await db.proyecto_archivo.update({wordpress_id: uploadMediaFile.id}, {where: {id: imgsWithoutWordrpessId[i].id}});
         imgsWithoutWordrpessId[i].wordpress_id = uploadMediaFile.id;
       }
     }
@@ -767,7 +768,7 @@ exports.update = async (req, res) => {
       const miniaturaFilename = getMiniaturaFilename(req.files[0]);
       if(miniaturaFilename) {
         updateData.miniatura_filename = miniaturaFilename;
-        updateData.miniatura_wordpress_id = "";
+        updateData.miniatura_wordpress_id = null;
         filesInitVal = 1;
       }
     }
@@ -826,16 +827,16 @@ exports.update = async (req, res) => {
         }
         
         //wordpress Integration
+        console.log(bodyData);
+        await t.commit();
         let proyectoSearch = await Proyecto.findOne({...searchInclude, where: {id: bodyData.id}});
-
         if(bodyData.post && !proyectoSearch.dataValues.wordpress_id) {
           //crear
           const wordpressId = await sendPostToWordpress(db, t, proyectoSearch.dataValues);
           if(!wordpressId) {
             throw new Error(errorMessage);
           }
-          await Proyecto.update({wordpress_id : wordpressId}, {where: {id: bodyData.id}, transaction: t});
-          await t.commit();
+          await Proyecto.update({wordpress_id : wordpressId}, {where: {id: bodyData.id}});
 
         } else if(!bodyData.post && proyectoSearch.dataValues.wordpress_id) {
           //ocultar
@@ -843,19 +844,15 @@ exports.update = async (req, res) => {
           if(!wordpressRes) {
             throw new Error(errorMessage);
           }
-          await t.commit();
 
         } else if(bodyData.post && proyectoSearch.dataValues.wordpress_id) {
           //actualizar
-          await t.commit();
           proyectoSearch = await Proyecto.findOne({...searchInclude, where: {id: bodyData.id}});
           const wordpressRes = updateInWordpress(db, t, proyectoSearch.dataValues);
           if(!wordpressRes) {
             throw new Error(errorMessage);
           }
 
-        } else {
-          await t.commit();
         }
 
 

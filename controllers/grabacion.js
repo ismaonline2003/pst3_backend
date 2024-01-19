@@ -254,13 +254,11 @@ const processAudioFile = async () => {
             console.log(`*** processAudioFile *** Process exited with code: ${code}`);
             if (code === 0) {
               console.log(`*** processAudioFile *** FFmpeg finished successfully`);
-              /*
               for(let i = 0; i < filesList.length; i++) {
                 fs.unlinkSync(`${fs_audioPiecesPath}/${filesList[i]}`);
               }
               fs.unlinkSync(fs_currentAudioFilePath);
               fs.unlinkSync(fs_outputAudioFilePath);
-              */
             } else {
                 console.log(`*** processAudioFile *** FFmpeg encountered an error, check the console output`);
             }

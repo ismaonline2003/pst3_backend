@@ -20,6 +20,10 @@ module.exports = (sequelize, Sequelize, Seccion, Profesor) => {
       miniatura_filename: {
         type: Sequelize.STRING
       },
+      post: {
+        type: Sequelize.BOOLEAN, 
+        defaultValue: false
+      },
       wordpress_id: {
         type: Sequelize.INTEGER
       },

@@ -854,6 +854,12 @@ exports.login = (req, res) => {
         }
       }
     }).then(data => {
+        if(data.length === 0) {
+          res.status(404).send({
+            message: "No existe ningún usuario registrado con el email: "+login+""
+          });
+          return;
+        }
         bcrypt.compare(password, data[0].dataValues.password, function(err, result) {
           if(result) {
               let currentTime = new Date();
@@ -892,8 +898,7 @@ exports.login = (req, res) => {
       })
     .catch(err => {
       res.status(500).send({
-        message: "Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde",
-        error: err
+        message: "Ocurrió un error durante el proceso... Vuelva a intentarlo mas tarde"
       });
     });
 };
