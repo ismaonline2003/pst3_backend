@@ -696,7 +696,7 @@ exports.findAll = async (req, res) => {
             }
         }
     }
-    let searchConfig = {include: [{model: Seccion}, {model: db.profesor}], limit:limit};
+    let searchConfig = {include: [{model: Seccion}, {model: db.profesor}], limit:limit, order: [['id', 'DESC']]};
     if(!['seccion', 'trayecto', 'pnf'].includes(parameter)) {
         searchConfig['where'] = condition;
     } else {

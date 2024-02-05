@@ -82,7 +82,7 @@ exports.findAll = async (req, res) => {
         }
     }
     condition.status_actual =  {[Op.eq]: 'finalizada'};
-    let searchConfig = {where: condition,  include: [{model: db.user, include: [{model: db.person}]}], limit:limit};
+    let searchConfig = {where: condition,  include: [{model: db.user, include: [{model: db.person}]}], limit:limit, order: [['id', 'DESC']]};
 
     Grabacion.findAll(searchConfig)
     .then((data) => {

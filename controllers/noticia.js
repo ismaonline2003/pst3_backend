@@ -183,7 +183,7 @@ exports.findAll = async (req, res) => {
         }
     }
 
-    let searchConfig = {...searchInclude, where: condition, limit:limit};
+    let searchConfig = {...searchInclude, where: condition, limit:limit, order: [['id', 'DESC']]};
     
     Noticia.findAll(searchConfig)
     .then((data) => {
